@@ -1,0 +1,202 @@
+---
+title: "Homework 3"
+author: "Zeyi Han, Shubhi Sharma, Maggie Swift"
+date: "2/10/2020"
+output: html_document
+---
+```{r setup, echo=F}
+rm(list=ls())
+knitr::opts_chunk$set(echo = TRUE)
+source('../clarkFunctions2020.R')
+```
+*Exercise 1.* Is the infection rate estimated to be higher for survivors or for those that die? How are these two distributions affected by the underlying prevalence of infection, $\theta$?
+
+The infection rate is estimated to be higher for survivors than for those that die. These two distributions are affected by $\theta$ in that (a) An increase in theta leads to more death (maximum value for the distribution shift right), and (b) increasing theta also leads to decreased survival (maximum shift left, and with decreasing probability).
+  
+```{r}
+
+n <- 100
+pi0 <- 0.8  #[S|I=1]
+pi1 <- 0.2   #[S|I=0]
+theta <- 0.03   # new infected
+ 
+par(mfrow = c(2,2))
+IS0 <- dbinom(1:n, 100, (1-pi0)*theta/((1-pi0)*(1-theta)+ (1-pi1)*theta))
+plot(1:100, IS0)
+ 
+IS1 <- dbinom(1:n, 100, pi1*theta/(pi0*(1-theta)+ pi*theta))
+plot(1:100, IS1)
+
+theta <- 0.8
+IS0_2 <- dbinom(1:n, 100, (1-pi0)*theta/((1-pi0)*(1-theta)+ (1-pi1)*theta))
+plot(1:100, IS0_2)
+ 
+IS1_2 <- dbinom(1:n, 100, pi1*theta/(pi0*(1-theta)+ pi*theta))
+plot(1:100, IS1_2)
+```
+ 
+ 
+*Exercise 2.* The variance in beta distribution decreases as the value of parameter b increases. Change parameter values to demonstrate this with a plot. Then compare the mean and variance (see Appendix) from the moments for the binomial and beta-binomial.
+
+Variance decreases with increasing beta. 
+``` {r}
+# Params
+m  <- 50                      # no. at risk
+S  <- 0:m          
+pi <- .35                     # survival Pr
+beta <- 1:10
+
+meanS <- lapply(beta, function(x) sum( S*dbetaBinom(S, m, mu=pi,b=x)))
+varS  <- lapply(1:length(beta), function(x) sum( (S-meanS[[x]])^2*dbetaBinom(S, m, mu=pi,b=beta[x]) ))
+plot(beta, varS, pch=19, col='blue')
+
+```
+
+```{r}
+# Initialize plot
+b  <- 4:2                     # beta parameters
+a  <- signif(b[1]/(1/pi - 1),3)  # 2nd beta parameter to give mean value = pi
+plot(S/m, dbeta(S/m, a, b[1]), xlab=expression( pi ), 
+     ylab=expression( paste("[", pi, "]") ), type='l')
+
+title('beta density for a, b')
+cols <- c('black', 'red', 'purple')
+locs <- c(1.75, 1.5, 1.25)
+for (i in 1:length(b)) {
+  a  <- signif(b[i]/(1/pi - 1),3)  # 2nd beta parameter to give mean value = pi
+  lines(S/m, dbeta(S/m, a, b[i]), col=cols[i])
+  ptext <- paste( "(", a, ", ", b[i], ")", sep="")
+  text(1,locs[i], ptext,  pos=2, col=cols[i])
+}
+```
+
+Comparing Variances:
+```{r}
+# beta-binomial
+m.bb <- sum( S*dbetaBinom(S, m, mu=pi,b=b) )
+v.bb  <- sum( (S - m.bb)^2*dbetaBinom(S, m, mu=pi,b=b) )
+# binomial
+m.binom <- m * pi
+v.binom <- m * pi * (1-pi)
+# beta
+b <- b[1]
+m.beta <- (a / (a + b))
+v.beta <- (a * b) / ( (a + b)^2 * (a + b + 1))
+
+df <- data.frame(mean=c(m.bb, m.binom, m.beta), var=c(v.bb, v.binom, v.beta))
+rownames(df) <- c('beta-binomial', 'binomial', 'beta')
+knitr::kable(df)
+```
+
+ 
+*Exercise 3.* I observe $D$ and $S$, and I know $\phi$ from previous studies. What is the probability of an observation $[D=1,S=1]$. (Hint: use total probability on $[D,I,S]$). Now write down the posterior distribution for a parameter that represents the product of infection and survival $\rho=\theta\pi_1$ given observations and known detection probability, i.e., $[\rho|D=1,S=1,\phi]$.
+
+$[S=1] = \pi_0(1-\theta) + \pi_1\theta$
+
+$[D=1] = [D=1|I][I] = [D=1|I=0][I=0] + [D=1|I=1][I=1] = [D=1|I=1][I=1] = \phi\theta$
+
+Because $D$ and $S$ are independent, $[D=1, S=1]=[D=1][S=1]=(\phi\theta)\cdot(\pi_0(1-\theta)+\pi_1\theta)$
+
+$\rho = \theta\pi_1$
+
+$[\rho|D=1,S=1,\phi]\propto[D=1, S=1|\rho][I] = [D=1, S=1|\rho][\phi][\pi_1]$, where the prior is $\phi\pi_1$.
+ 
+*Exercise 4.* Write a function to determine the posterior estimate of the mean for a normal likelihood, normal prior distribution, and known variance $\sigma^2$. You will need to generate a sample, supply a prior mean and variance, determine the posterior mean and variance, and plot.
+
+```{r}
+posteriorSample <- function(samples, llMean, priorMean, llVar, priorVar, varReturn= 'posterior'){
+  #parameters from user  
+  n = samples
+  mu = llMean
+  mu0 = priorMean
+  sigma = llVar
+  tau = priorVar 
+  
+  set.seed(101)
+  
+  #sampling
+  y <- rnorm(n, mu, sigma)
+  ybar <- mean(y)
+  
+  # pull prior and posterior 
+  prior <- rnorm(n, mu0, tau)
+  sigmaN <- n/sigma^2 + 1/tau^2
+  muN <- ((n*ybar)/sigma^2 + mu0/tau^2)/sigmaN
+  posterior <- rnorm(n, muN, sigmaN)
+  
+  if(varReturn == 'posterior'){ return(posterior) }
+  if(varReturn == 'prior'){ return(prior) }
+  if(varReturn == 'likelihood'){ return(y) }
+}
+
+generateAll <- function(n, mu, m0, sigma, tau) {
+  posterior <- posteriorSample(samples = n, llMean = mu, 
+                             priorMean = mu0, llVar = sigma, 
+                             priorVar = tau)
+  prior <-  posteriorSample(samples = n, llMean = mu, 
+                             priorMean = mu0, llVar = sigma, 
+                             priorVar = tau, varReturn = 'prior')
+  likelihood <- posteriorSample(samples = n, llMean = mu, 
+                             priorMean = mu0, llVar = sigma, 
+                             priorVar = tau, varReturn = 'likelihood')
+  plot(density(prior), col = 'blue', xlab = "x", ylab = "p(x)",
+       main = "Normal-normal posterior", ylim= c(0, 0.06))
+  lines(density(likelihood), col = 'black')
+  lines(density(posterior), col = 'red')
+  legend('topright', legend = c('likelihood', 'posterior', 'prior'),
+         col = c('black', 'red', 'blue'), lty = c(1, 1, 1))
+}
+```
+
+```{r}
+n <- 1000 # number of samples 
+mu <- 4 # sample mean 
+mu0 <- 4 # prior mean 
+sigma <- 10
+tau <- 20
+
+generateAll(n, mu, m0, sigma, tau)
+```
+
+
+*Exercise 5.* Obtain the posterior mean and variance for regression parameters for a simulated data set. 
+
+For 1000 samples, $Y|\mu \sim N(\mu, \sigma^2)$. Setting $\mu = 4, \sigma = 10$, $\mu \sim N(\mu_0, \tau^2)$. Setting $\mu_0= 4, \tau = 20$, we get posterior mean $= 4.04$ and posterior variance $= 100.5$.
+
+
+```{r}
+generateTables <- function(n, p, sigma) {
+  X <- matrix(rnorm(p*n, 7, 10), n, p )
+  X[, 1] <- 1
+  
+  beta <- matrix(rnorm(p, 4, 9), p, 1 )
+  y <- matrix(rnorm(n, 5, 8), n, 1)
+  b <- matrix(rnorm(p, 6, 9), p, 1)
+  B <- diag(x = 20, nrow = p, ncol = p)
+  V = solve((1/sigma^2) * t(X)%*%X + solve(B))
+  v = (1/sigma^2)*t(X)%*%y + solve(B)%*% b
+  
+  Vv = V%*%v
+  betas = c('beta1', 'beta2', 'beta3', 'beta4', 'beta5')
+  df <- data.frame(cbind(V, Vv))
+  row.names(df) = betas
+  names(df) <- c(betas, 'mean')
+  knitr::kable(df, caption="Means and Covariances") #covariance
+}
+
+
+```
+
+```{r}
+# MAIN
+n = 1000 
+p = 5
+sigma = 10
+generateTables(n,p,sigma)
+```
+
+```{r, echo=F}
+
+
+```
+

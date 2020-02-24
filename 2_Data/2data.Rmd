@@ -1,0 +1,295 @@
+---
+title: "big data from the internet with R"
+author: '[Jim Clark](http://sites.nicholas.duke.edu/clarklab/)'
+date: '`r Sys.Date()`'
+output:
+  html_document:
+    fig_caption: yes
+    highlight: kate
+    theme: sandstone
+    toc: yes
+    toc_depth: 3
+  word_document:
+    toc: yes
+    toc_depth: '3'
+  pdf_document:
+    toc: yes
+    toc_depth: '3'
+subtitle: env/bio 665 Bayesian inference for environmental models
+fontsize: 12pt
+urlcolor: blue
+---
+
+```{r colfmt, echo=F}
+ebreak <- "--------------------------- ===== ---------------------------"
+makeSpace <- function(){
+  outputFormat = knitr::opts_knit$get("rmarkdown.pandoc.to")
+  if(outputFormat == 'latex')
+    "\\bigskip"
+  else if(outputFormat == 'html')
+    "<br>"
+  else
+    "<br>"
+}
+colFmt = function(x,color){
+  outputFormat = knitr::opts_knit$get("rmarkdown.pandoc.to")
+  if(outputFormat == 'latex')
+    paste("\\textcolor{",color,"}{",x,"}",sep="")
+  else if(outputFormat == 'html')
+    paste("<font color='",color,"'>",x,"</font>",sep="")
+  else
+    x
+}
+```
+
+
+#resources
+
+## data
+
+* download [Breeding bird survey, explanation and data](https://www.pwrc.usgs.gov/bbs/), with supporting data, but only for North Carolina or get specific BBS files from `Sakai/Resources/data`:
+    + `BBSexampleTime.rdata`
+* setup of a directory structure `../dataFiles/dataBBS/` 
+    + place BBS files in `/dataBBS`
+
+
+
+##software
+
+* R2jags, must be installed
+```{r clarkFunctions, message=FALSE, cache=FALSE}
+source('../clarkFunctions2020.r')
+```
+
+## readings
+
+[Tidy Data](https://www.jstatsoft.org/article/view/v059i10), Wickam on concepts that link models and data to algorithms to R, *J Stat Soft*.
+
+[Connectivity of wood thrush breeding, wintering, and migration sites](http://onlinelibrary.wiley.com/doi/10.1111/cobi.12352/full), Stanley et al on tracking wood thrush populations combined with BBS *Cons Biol*.
+
+
+#objectives
+
+* gain familiarity with R
+    + syntax for files, directories, filenames, paths
+    + Interacting with files through `list.file, read.table, read.csv, readLines, load, source, write.table, save`
+    + Interacting with objects and storage modes `numeric, character, factor, list, date, formula`
+    + Interacting with functions: arguments, default values
+    + transform a data file into observations by variables (OxV)
+* learn to model with factors
+* survive a (semi) big data example, including input, data exploration, and application to the wood thrush decline
+* write a formula and graph for a basic GLM
+* basics of exploratory data analysis (EDA)
+* implement a Bayesian model applied to count data
+
+
+`r makeSpace()`
+
+#the migratory wood thrush
+
+The migratory [wood thrush](https://www.allaboutbirds.org/guide/Wood_Thrush/id) population is declining.  There are multiple threats, both here in the temperate zone and in their tropical wintering grounds in Central America.
+[Stanley et al. (2015)](http://onlinelibrary.wiley.com/doi/10.1111/cobi.12352/full) quantified declines in wood thrush abundance in the breeding range by region, and they related it to forest cover.  They used tracking data to determine if regional differences in the US might be explained by the fact that birds summer and wintering grounds were linked.  I used this example to examine changes in abundance using the breeding-bird survey (BBS) [data](https://www.pwrc.usgs.gov/bbs/).  Specifically, we will ask whether or not wood thrush populations could be in decline in NC and, if so, which variables in the BBS data might help us understand it.
+
+![[Wood thrush populations may be declining](https://www.allaboutbirds.org/guide/Wood_Thrush/id) ](wood_thrush.jpg)
+
+
+I introduced R without much explanation in unit 1.  Here I'll say a bit more to get us started on the BBS data, then let the data themselves lead the transition to data exploration and modeling.
+
+#why R?
+
+Data manipulation remains the most time-consuming element of analysis.  The challenges posed by data can halt progress long before model analysis begins.  The popularity of R begins with the flexibility it provides for data structures and management.  
+
+A user can interact with R at a range of levels.  High-level interactions with transparent functions like `lm` (linear regression) require little more than specification of predictors and a response variable.  At the same time, R allows for low-level algorithm development.  In fact, functions written in C++ and Fortran can be compiled and used directly with R.  This combination of high- and low-level interaction allows one to enter at almost any degree of sophistication, then advance, without requiring a change in software. 
+
+
+##interacting with R
+
+If you have not previously used R, this is a good time to work through the vignette on [basicR](https://sakai.duke.edu/portal/site/88b33e7b-ef00-4e01-9539-49dc5789d115/tool/8cd4acdb-d4eb-4641-b529-8046c6f256c4?panel=Main).  From there I move on to an example with the BBS data.
+
+##where am I?
+
+When I open R studio I am in a directory.  I can interact directly with files that are in my working directory.  To interact with a file in a different directory, I need to either supply a `path` to the directory that it occupies, or I set my working directory using the `Session` tab in Rstudio.  
+
+I can determine which directory I am in with the function `getwd() `.  I can move to a different director using `setwd(pathToThere)`.  Below is a screenshot of my directories:
+
+```{r, screen1, out.width = "550px", echo=F, fig.cap='Current directory.'}
+knitr::include_graphics("ScreenShotDirectories.png")
+```
+
+
+`r makeSpace()`
+
+Here I am:
+
+```{r whereAmI}
+getwd()
+```
+
+Syntax is standard unix/linux.  I move down a directory by giving a path with the directory name followed by `/`.  I can move up directory by starting the path with `".."`.  For example, the path to a file in the directory `dataFiles` (see screenshot above) is up, then down:
+
+```{r goToThere, eval=F}
+setwd("../dataFiles/")           # go there
+setwd("../2data/")               # back here
+```
+
+
+
+
+
+
+##where's the file?
+
+As discussed above, files are identified by their location, or `path`, and the file name.  The `path` can be relative to the current.  To determine which files are in my current directory, I use `list.files()`.  This returns a `character vector` of file names.  To find the names of files in a different directory I need to include the `path`.  This code works for me, because the paths match the locations of directories relative to my current directory:
+
+```{r filenames}
+list.files()                        # files in current directory
+list.files("../dataFiles/")         # in dataFiles
+list.files("../dataFiles/dataBBS")  # in dataFiles/dataBBS
+```
+
+##What's in the file
+
+
+With so many file formats, ingesting data files has become almost an art. The BBS data confront us with `.txt` and `.csv` files, both of which can be straightforward, but not always.  There are now dozens of file formats that can be loaded into R, but each can present challenges.  An internet search will often locate an R package that reads a specific file type.  Some files may require modification, either to make them readable or to extract information they contain that is not extracted by the package I find to read them.  The R function `readLines` allows the desperate measure of reading files line-by-line.  This is useful when, say, a `.txt` file contains non-ASCII characters.  However, this is no help at all for many file types.  One of the most flexible editors appears to be [atom](https://atom.io), freely available on the internet.  Some of the challenges are presented by the BBS data.
+
+Here I load observations in two objects, `xdata` (predictors) and `ydata` (bird counts):
+
+```{r data}
+load("../dataFiles/dataBBS/BBSexampleTime.rdata") #load xdata, ydata
+
+xdata[1:5,]
+ydata[1:5,]
+```
+
+Here is a map of the routes:
+
+```{r mapRoutes}
+
+maps::map('county', xlim = c(-85, -75), ylim = c(33.6, 36.8), col='grey')
+maps::map('state', xlim = c(-85, -75), ylim = c(33.6, 36.8), add=T)
+points(xdata$lon, xdata$lat, pch = 16, cex = 1)
+```
+
+I now examine counts for wood thrush:Z
+
+```{r mapThrush}
+
+def <- xdata$defSite
+def <- (def - mean(def, na.rm=T))/sd(def, na.rm=T)
+
+df <- seq(-3, 3, length=20)
+
+colT <- colorRampPalette( c('#8c510a','#d8b365','#01665e','#2166ac') )
+
+cols <- rev( colT(20) )
+
+di <- findInterval(def, df, all.inside = T)
+
+
+spec <- 'WoodThrush'
+
+maps::map('county', xlim = c(-85, -75), ylim = c(33.6, 36.8), col='grey')
+maps::map('state', xlim = c(-85, -75), ylim = c(33.6, 36.8), add=T)
+cex <- 5*ydata[,spec]/max(ydata[,spec], na.rm=T)
+points(xdata$lon, xdata$lat, pch = 16, cex = cex, col = cols[di] )
+title(spec)
+```
+
+
+
+
+
+
+
+
+`r makeSpace()`
+
+*Files downloaded from the BBS site.*
+
+As mentioned previously, files we will use are located on Sakai.  Familiarize yourself with the BBS sampling protocols [here](https://www.pwrc.usgs.gov/bbs/).  The data can be downloaded from [here](https://www.pwrc.usgs.gov/bbs/).  I download most of files, but limit the geographic data files to the state of North Carolina.  
+
+
+```{r, screen2, out.width = "650px", fig.cap='Downloaded files are shown in a directory.', echo=F}
+knitr::include_graphics("ScreenShotBBS.png")
+```
+
+
+
+##OxV format and the `data.frame`
+
+Data are often stored in formats that are not amendable to analysis; reformatting is required. For analysis I typically want a `matrix` or `data.frame` with observations as rows and variables as columns, **OxV** format.  Here are terms I use:
+
+```{r table1, echo=FALSE, message=FALSE, warnings=FALSE, results='asis'}
+tabl <- "  
+| terms           |   definition                                                |
+| --------------- | :---------------------------------------------------------- |
+| *observation*   |  what I record at a site/location/plot, numeric or not |
+| *sample*        |  observations-by-variables `matrix` or `data.frame` |
+| *design matrix* |  observations-by-variables `matrix`, any factors converted to indicators |
+| *covariate*     |  a predictor that takes continuous values |
+| *factor*        |  a discrete predictor that can have 2, 3, ...  *levels* |
+| *level*         |  a *factor* has at least 2 |
+| *main effect*   |  an individual predictor |
+| *interaction*   |  a combination of more than one predictor |
+"
+cat(tabl) # output the table in a format good for HTML/PDF/docx conversion
+```
+
+
+`r makeSpace()`
+
+The `list` that I called `data` looks like a `matrix`.  I find the dimensions of `data` with a call to `dim(data)` = [`r dim(data)`].  These two numbers are rows and columns, respectively.  Although `data` has rows and columns, it is not stored as a R `matrix`, because it may include factors or even characters.  A `data.frame` is rendered as rows and columns for user, but it is not stored as a matrix and, thus, does not admit matrix operations.  The columns of a `data.frame` must have the same lengths, but they do not need to be of the same `mode`.  Although I cannot do numeric operations across columns of a `list`, a `data.frame` is useful for structuring data.  If all elements of a `data.frame` are `numeric`, then the `data.frame` is converted to a `numeric matrix` using the function `as.matrix`.
+
+This is a good time to mention a new object in R, the `tribble`, see a description here `??tribble`.  Some `data.frame` behaviors can be troublesome if you are not familiar with them.  These will come up as we proceed.  Because there is so much code available that uses the `data.frame`, I will continue to use it here.  
+
+
+
+Be careful when changing the dimension of a `matrix`.  For example, I might construct a matrix like this:
+
+```{r mat0}
+nd <- 3
+z <- matrix(1:nd, 2*nd, 2)
+colnames(z) <- paste('c',1:2,sep='')
+rownames(z) <- paste('r',1:(2*nd),sep='')
+z
+```
+
+I provided `1:nd` $= 3$ elements to fill a matrix that holds 6 rows and 2 columns.  This did not generate an `error` or `warning`, because the number of elements in the matrix is a multiple of 3.  This behavior can simplify code, but it can also create bugs when this is not what I want and I am not given a `warning`.  
+
+
+#is the wood thrush declining?
+
+
+To explore this question I need to structure the BBS data.  An observation includes information (`Route`, `Year`) and the `count` for each species that is seen or heard.  It includes a description of the weather, which affects behavior. From the table above, a **sample** is an observations-by-variables `matrix` or `data.frame`.  It is the fundamental unit for analysis; I draw inference from a **sample**.  This format is **OxV** ('obs by variables') format.  The **design matrix** is a matrix.  In R it is stored as a  `matrix`, which is numeric.  It contains predictors, which can be main effects and interactions.  It can include covariates and factors.  It can be analyzed, because it is `numeric`.  
+
+If **factors** are included in the `data.frame`, they should be declared using the function `factor`.  If the factors are identified as words in a `data.frame`, then you will be interpreted that way.  Confusion can arise when a factor is represented by  integer values, e.g., $1, 2, \dots$; it will be analyzed as a factor only if I declare it with `factor(variable)`.  When the `data.frame` is converted to a design `matrix`, the `factor` levels each occupy a column of zeros and ones (more on this later).  
+
+Many data sets are not organized as OxV, often for good reasons, but they must be put in OxV format for analysis.  The data may not be stored as OxV, because it can be inefficient.  In the BBS data, an *observation* consists of the counts of all species at a stop--it includes everything the observer recorded at that stop.  Species not seen are zero.  Rather than enter many zeros in columns for all of the species not seen, the BBS data offers one line per species--a single observation occupies many rows in `data`.
+
+Second, OxV format may be hard to see.  For viewing/editing data I prefer to see entire rows.  When I can see the full width of an object I can find columns, check formatting, correct errors, and so forth.  If BBS data were stored as OxV, I would have to scroll across hundreds of columns.  If the number of variables is so large that I cannot see it, I might want to format it differently.  I do so at the risk of creating more work when I analyze it.  The object `data` is easy to read, because I see entire rows, e.g., with `head(data)` and `tail(data)`.
+
+If some variables are repeated across multiple observations they might be stored separately.  This practice not only reduces size and, thus, storage, but also reduces errors that can enter simply due to redundancy.  In the object `data`, the column `Route` could be treated as a variable (a 'factor' or group to be treated as a 'random effect'), but it could also be an indicator for other variables.  Any attribute of a `Route` that does not change through time can be recorded once and then retrieved using the index represented by `Route`.  It can be an index that allows us to link it with information in other files.  To put it in OxV I need to assemble this outside information into the proper rows.
+
+
+```{r trendsThrush}
+plot(xdata$year, ydata[,'WoodThrush'])
+
+
+# route by year
+thrush <- tapply(ydata[,'WoodThrush'], list( route = xdata$Route, year = xdata$year), mean, na.rm=T)
+
+# average by year
+
+thrushYear <- colMeans( thrush, na.rm=T)
+
+year <- as.numeric(names(thrushYear))
+
+lines(year, thrushYear, lwd=2)
+
+thrushQuant <- apply( thrush, 2, quantile, na.rm=T)
+lines(year, thrushQuant[2,], lty=2, lwd=2, col = 3)
+lines(year, thrushQuant[4,], lty=2, lwd=2, col = 3)
+```
+
+
+

@@ -1,0 +1,76 @@
+---
+title: "Homework 2"
+author: "Margaret Swift"
+date: "1/27/2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+*Exercise 1:*  Why are the storage models of xdata and ydata different?
+
+*Answer:* `xdata` is stored as a `list` because the data within are a mixture of numeric and string characters. `ydata` is `numeric` because it is only filled with numeric data.
+\medskip\medskip
+
+*Exercise 2:* What does this map tell us about the spatial distribution of bird counts and the moisture deficits where they are common?
+
+*Answer:* 
+\medskip\medskip
+
+
+*Exercise 3:* Can we tell from this plot if birds are declining?
+
+*Answer:* 
+\medskip\medskip
+
+
+*Exercise 4:* How would I determine if adding new sites has biased the sample toward warmer or cooler temperatures?
+
+*Answer:*  
+\medskip\medskip 
+
+*Exercise 5:* Does the distribution of data suggest that trends in time for bird abundances could be hard to estimate?
+
+*Answer:*  
+\medskip\medskip 
+
+*Exercise 6:* From the object trend, is temperature increasing or decreasing on average? Is this trend ‘significant’? Does it differ by site?
+
+*Answer:*  
+\medskip\medskip 
+
+*Exercise 7:* What is the difference between the two fits?
+
+*Answer:*  
+\medskip\medskip 
+
+*Exercise 8:* How does the distribution change at 1987?
+
+*Answer:*  
+\medskip\medskip 
+
+*Exercise 9:* Which variables in this GLM appear to be important and why?
+
+*Answer:*  
+\medskip\medskip 
+
+*Exercise 10:* Identify differences between the glm and Bayesian results. Which would you use?
+
+*Answer:*  
+\medskip\medskip 
+
+*Exercise 11:* Examine the main effects and interactions from this analysis to suggest which cover types have experienced the biggest declines.
+
+*Answer:*  
+\medskip\medskip
+
+*Exercise 12:* If the trends over time are explained by other variables, then I should be able to remove year from the model and still explain the trend. Use glm and jags to see how well variables could explain trends.
+
+*Answer:*  
+\medskip\medskip 
+
+*Exercise 13:* According to Wickam, what are the five most common problems with data sets?
+
+*Answer:* 

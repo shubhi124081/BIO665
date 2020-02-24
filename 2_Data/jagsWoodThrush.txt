@@ -1,0 +1,9 @@
+model{
+  for(i in 1:n){                             
+    Y[i] ~ dpois(lambda[i])                  # stochastic Y
+    lambda[i] <- exp( inprod(beta[],X[i,]) ) # lambda deterministic
+  }
+   for (i in 1:p) {
+     beta[i] ~ dnorm(0, 1.0E-5)              
+   }
+}
