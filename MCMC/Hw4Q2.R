@@ -23,3 +23,5 @@ for(sig in c(0.05,0.5,1,3,6,10)){
   plot(density(LAMBDA), main = paste("sigma = ", sig), xlim = c(0,10))
   LAMBDA <- NULL
 }
+
+# looks like proposal distribution with higher sigma are more efficient than those with smaller sigma. 
