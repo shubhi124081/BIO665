@@ -10,7 +10,7 @@ output:
 ```{r setup, include=FALSE}
 #----------------------------------------------------------------------------
 # LOADING
-knitr::opts_chunk$set(echo = FALSE, eval=TRUE)
+knitr::opts_chunk$set(echo = FALSE, eval=TRUE, cache=TRUE)
 library(ggplot2)
 library(grid)
 library(gridExtra)
@@ -131,15 +131,13 @@ for (i in 1:ntimes) {
     Lstar <- .tnorm(1, 0, 10, mu=Lcur, sig=2)
   
     # Find probability of each lambda given y
-    num   <- prod(dpois(y, Lstar) * dunif(Lstar, 0, 10))
-    denom <- prod(dpois(y, Lcur ) * dunif(Lcur, 0, 10))
-    ratio <- num / denom
+    num   <- log(prod(dpois(y, Lstar) * dunif(Lstar, 0, 10)))
+    denom <- log(prod(dpois(y, Lcur ) * dunif(Lcur, 0, 10)))
+    ratio <- exp(num - denom)
     
     # Accept or reject:
-    if (!is.nan(ratio)) { #sometimes this is NaN for large nrep; not sure why
-      u <- runif(1, 0, 1)
-      if (u < ratio) Lcur <- Lstar
-    }
+    u <- runif(1, 0, 1)
+    if (u < ratio) Lcur <- Lstar
   }
   
   # Save
@@ -279,7 +277,9 @@ plotFn(burnin = 5000) #this is with normal proposal
 
 ## Exercise 4
 
+It doesn't look like there is much difference between how fast the beta chains converge for positive versus negative inbreeding frequencies. For negative frequencies, though, the chains bump up against the defined lower limit of `f`, which is to be expected. Also note that, as `n` in creases, the beta chains converge more tightly.
 
+The following graphs are paired for similar values of `n` of 5, 10, and 20, for both positive and negative values of `f`.
 
 ```{r q4}
 #----------------------------------------------------------------------------
@@ -293,7 +293,7 @@ cols <- colT(10)
 popsizes <- rep(c(5, 10, 20),2) #population sizes
 npop <- 20               #no. populations
 p  <- 0.6                #frequency of allele a
-f  <- c(-.2, .2)         #inbreeding coefficient
+f  <- c(-.5, .5)         #inbreeding coefficient
 
 # Gibbs params
 g1 <- g2 <- 1   #beta shape params
@@ -374,6 +374,7 @@ mydata[[3]]$p1
 mydata[[6]]$p1
 
 ```
+
 
 
 ## Appendix {#appendix}

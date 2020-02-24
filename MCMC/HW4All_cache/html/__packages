@@ -1,1 +1,7 @@
 base
+ggplot2
+gridExtra
+reshape2
+gtable
+coda
+rjags
