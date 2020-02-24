@@ -24,4 +24,4 @@ for(sig in c(0.05,0.5,1,3,6,10)){
   LAMBDA <- NULL
 }
 
-# looks like proposal distribution with higher sigma are more efficient than those with smaller sigma. 
+# The variance of the posterior distribution is lambda =3. As the figure shows, the proposal distribution with sigma = 3 is the most efficient one. 
