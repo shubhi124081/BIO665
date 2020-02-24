@@ -14,7 +14,7 @@ par(mfrow=c(2,3))
 for(sig in c(0.05,0.5,1,3,6,10)){
   for (i in 1:nrep){
     Lstar <- .tnorm(1,0,10,L0,sig)
-    r <- prod(dpois(y,Lstar))*dunif(Lstar, min = 0, max = 10)/prod(dpois(y,L0) *dunif(L0, min = 0, max = 10))
+    r <- prod(dpois(y,Lstar)*dunif(Lstar, min = 0, max = 10))/prod(dpois(y,L0) *dunif(L0, min = 0, max = 10))
     
     # reject or accept 
     if (r > runif(1,0,1)) L0 <- Lstar
