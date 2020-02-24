@@ -11,53 +11,20 @@
 
 #++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 # LIBRARIES
+rm(list=ls())
 library(rjags)
 source('../clarkfunctions2020.R')
 
 #++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 # SCRATCH
 
-file <- "logisReg.txt" 
-n     <- 500
-p     <- 2
-x     <- matrix(rnorm(n*p),n,p)        # design matrix
-x[,1] <- 1                             # intercept
-beta  <- matrix(c(-3,3),p,1)           # parameter vector
-ltg   <- x %*% beta                    # logit theta
-tg    <- invlogit(ltg)                 # initial values for theta
-y     <- rbinom(n,1,tg)                # data
-
-
-cat("model{
-  
-  for (i in 1:n) {
-    y[i] ~ dbern(theta[i])
-    logit(theta[i]) <- b0 + b1*x1[i]
-  }
-  b0 ~ dnorm(0, .001)  
-  b1 ~ dnorm(0, .001)
-}", file = file)
-
-logisData <- list(y = y, x1 = x[,2], n = length(y))
-parNames <- c('b0','b1')
-
-parInit <- function(){
-  list(b0 = rnorm(1), b1 = rnorm(1))
-}
-jagsfit <- jags.model(data=logisData, inits=parInit,file=file)
-update(jagsfit)
-jagsLogit <- coda.samples(jagsfit, variable.names=c("b0","b1"), 
-                          n.iter=5000)
-tmp <- summary(jagsLogit)
-print(tmp$statistics)
-
-
-data  <- read.table('../dataFiles/FACEtrees.txt',header=T)
+data  <- read.table('FACEtrees.txt',header=T)
 form  <- as.formula(cones ~ nfert*trt + diam)
 X     <- model.matrix(form, data=data)
 Y     <- model.frame(form, data=data)$cones
-p     <- ncol(X)
 n     <- nrow(X)
+p     <- ncol(X)
+# beta  <- matrix(c(-3,3),p,1)           # parameter vector
 file <- "regModel.txt" 
 
 cat("model{
@@ -88,4 +55,20 @@ traceplot(outjags)
 #++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 # params
-n <- c(5, 10, 20)
+# p = freq of allele A; f = inbreeding coef
+# pmake out = c(paa, pab, pbb)
+
+pmake(c(.5,0)) #no inbreeding
+
+n <- c
+
+
+
+
+
+
+
+
+
+
+#eof
