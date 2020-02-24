@@ -1,0 +1,12 @@
+model{
+
+  for (i in 1:n){
+    Y[i] ~ dpois(lambda[i])                  
+    lambda[i] <- exp( inprod(beta[],X[i,]) ) 
+  }
+  beta[1] ~ dnorm(0, .1)
+  beta[2] ~ dunif(0, 10)
+  beta[3] ~ dunif(0, 10)
+  beta[4] ~ dnorm(0, .1)
+  beta[5] ~ dnorm(0, .1)
+}
