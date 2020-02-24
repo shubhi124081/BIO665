@@ -1,4 +1,4 @@
-# HW4.R
+# Metropolis.R
 # Created: 2/21/2020
 # Author:  Margaret Swift
 # Contact: margaret.swift@duke.edu
