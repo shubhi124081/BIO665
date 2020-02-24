@@ -105,6 +105,7 @@ knitr::kable( summ, caption = "Summary for Chains of Mean and Variance Parameter
 
 Using a Metropolis algorithm (see [Appendix]{#appendix}), we found that the Metropolis lambda was reasonably close to the original lambda, at least if one were to round to the nearest whole number.
 
+The variance of the posterior distribution is `lambda=3`. As the figure below shows, the proposal distribution with `sigma=3` is the most efficient one. 
 
 ```{r q2} 
 #----------------------------------------------------------------------------
@@ -114,6 +115,7 @@ Using a Metropolis algorithm (see [Appendix]{#appendix}), we found that the Metr
 n <- 100
 nrep <- 1000
 ntimes <- 10
+lambda <- 3
 
 # Let's run this a couple of times to compare.
 Lcur.df <- data.frame(OriginalLambda = rep(0, ntimes),
@@ -121,7 +123,6 @@ Lcur.df <- data.frame(OriginalLambda = rep(0, ntimes),
                       DistanceFromOriginal = rep(0,ntimes))
 for (i in 1:ntimes) {
   Lcur <- runif(1, 0, 10)
-  lambda <- runif(1, 0, 10)
   y <- rpois(n, lambda)
   
   # Loop over a number of repetitions
@@ -147,7 +148,7 @@ for (i in 1:ntimes) {
 
 knitr::kable( Lcur.df, caption = "Summary for ten runs of Metropolis algorithm", digits=2)
 
-
+# For second plot
 # y
 n <- 100
 lambda <- 3
@@ -173,7 +174,7 @@ for(sig in c(0.05,0.5,1,3,6,10)){
   LAMBDA <- NULL
 }
 
-# The variance of the posterior distribution is lambda =3. As the figure shows, the proposal distribution with sigma = 3 is the most efficient one. 
+# 
 ```
 
 
