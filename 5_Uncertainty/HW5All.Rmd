@@ -1,0 +1,100 @@
+---
+title: "Homework 5 Responses"
+author: "(Nicholas Bruns), Zeyi Han, Shubhi Sharma, Margaret Swift"
+date: "2/24/2020"
+output:
+  prettydoc::html_pretty:
+    theme: architect
+    highlight: github
+---
+
+```{r setup, include=F}
+#----------------------------------------------------------------------------
+# LOADING
+knitr::opts_chunk$set(echo=FALSE, eval=TRUE, cache=TRUE)
+pacman::p_load(ggplot2)
+source('../clarkfunctions2020.R')
+Rcpp::sourceCpp('../cppFns.cpp')
+# any libraries and data here
+
+#----------------------------------------------------------------------------
+# FUNCTIONS
+# put functions here
+
+```
+
+
+## Exercise 1 {#q1}
+Using count data, I want to estimate a mean value.  Here is the Poisson likelihood:
+
+$$
+L(\mathbf{y};\lambda) = \prod_i^n Poi(y_i| \lambda) =
+\prod_i^n \frac{\lambda^{y_i} e^{-\lambda}}{y_i!}  
+\propto \lambda^{\sum_i y_i} e^{-n \lambda}
+$$
+The log likelihood is
+
+$$
+\log L \propto  n \bar{y}\log \lambda  -n \lambda
+$$
+
+I find the MLE by differentiating and solving for $\hat{\lambda}$:
+
+$$
+\frac{\partial{\log L}}{\partial \lambda} = \frac{n \bar{y}}{\lambda} - n 
+$$
+The solution is $\hat{\lambda} = \bar{y}$. Interpret this result.
+
+```{r q1}
+#----------------------------------------------------------------------------
+## EXERCISE 1
+
+```
+
+## Exercise 2 {#q2}
+Use Fisher Information to find the standard error of the mean of a normal sampling distribution.  Hint: you will need this:
+
+$$
+I = - \frac{d^2 \log L(\mu)}{d \mu^2}\bigg\rvert_{\hat{\mu}}
+$$
+
+
+```{r q2}
+#----------------------------------------------------------------------------
+## EXERCISE 2
+
+```
+
+## Exercise 3 {#q3}
+Estimate the standard error for the exponential model using Fisher Information.  
+
+
+```{r q3}
+#----------------------------------------------------------------------------
+## EXERCISE 3
+
+```
+
+## Exercise 4 {#q4}
+For the cone example, I used the likelihood $Poi(y_i | \beta x_i)$.  Combine this likelihood with the prior $gamma(\beta | a, b)$ and answer the following:
+
+a) What is the posterior density for $\beta$?
+
+b) For simulated data sets of $n = 5$, how do the standard errors and credible intervals for this model compare with Fisher information?  
+
+c) The form of the Bayesian standard error and the standard error from Fisher Information look different.  Can you explain why numerically they are similar? [Hint: think about sample size $n$].
+
+
+```{r q4}
+#----------------------------------------------------------------------------
+## EXERCISE 4
+
+```
+
+
+## Appendix {#appendix}
+
+```{r ref.label=knitr::all_labels(), echo = T, eval = F}
+```
+
+

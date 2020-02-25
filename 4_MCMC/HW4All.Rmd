@@ -11,12 +11,7 @@ output:
 #----------------------------------------------------------------------------
 # LOADING
 knitr::opts_chunk$set(echo = FALSE, eval=TRUE, cache=TRUE)
-library(ggplot2)
-library(grid)
-library(gridExtra)
-library(reshape2)
-library(gtable)
-library(rjags)
+pacman::p_load(ggplot2, grid, gridExtra, reshape2, gtable, rjags)
 source('../clarkfunctions2020.R')
 Rcpp::sourceCpp('../cppFns.cpp')
 treedata <- read.table('FACEtrees.txt',header=T)
