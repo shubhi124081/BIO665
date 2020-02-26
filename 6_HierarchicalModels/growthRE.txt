@@ -1,0 +1,29 @@
+model{
+    for(i in 1:n){
+      y[i]  ~ dnorm(mu[i],tau)
+      mu[i] <- b1 + b2*X[i,2] + b3*X[i,3] + b4*X[i,4] + 
+               a1[ix[i]] + a2[ix[i]]*X[i,2] + a3[ix[i]]*X[i,3] + a4[ix[i]]*X[i,4]
+    }
+    for(j in 1:ntree){
+      a1[j]  ~ dnorm(0.0,tau1)
+      a2[j]  ~ dnorm(0.0,tau2)
+      a3[j]  ~ dnorm(0.0,tau3)
+      a4[j]  ~ dnorm(0.0,tau4)
+    }
+    tau1   ~ dgamma(0.001,0.001)    #RE precision intercept
+    sigma1 <- 1/sqrt(tau1)          #RE variance intercept
+    tau2   ~ dgamma(0.001,0.001)    #RE precision diam
+    sigma2 <- 1/sqrt(tau2)          #RE variance diam
+    tau3   ~ dgamma(0.001,0.001)    #RE precision diam
+    sigma3 <- 1/sqrt(tau3)          #RE variance diam
+    tau4   ~ dgamma(0.001,0.001)
+    sigma4 <- sqrt(1/tau4)
+    tau    ~ dgamma(0.001,0.001)
+    sigma  <- sqrt(1/tau)
+    
+    b1 ~ dnorm(0.0,1.0E-06)
+    b2 ~ dnorm(0.0,1.0E-06)
+    b3 ~ dnorm(0.0,1.0E-06)
+    b4 ~ dnorm(0.0,1.0E-06)
+    }
+    

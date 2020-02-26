@@ -86,6 +86,65 @@ abline(h=.05, lty=2)
 CI <- range(rseq[P > .05])
 abline(v=CI, lty=2)
 
+# Bootstrapping (cone example)
+filename <- ('../dataFiles/FACEtrees.txt')
+data <- read.table(filename, header=T)
 
+y <- data[,'cones']
+x <- data[,'diam']
+w <- is.finite(x) & is.finite(y)
+ambient  <- which(data[,'trt'] == 0 & w)
+elevated <- which(data[,'trt'] == 1 & w)
+
+Y    <- mean(y[ambient])
+X2   <- mean(x[ambient]^2)
+nlo  <- length(ambient)
+bmuA <- Y/X2
+bseA  <- sqrt(Y/nlo)/X2
+
+Y    <- mean(y[elevated])
+X2   <- mean(x[elevated]^2)
+nhi  <- length(elevated)
+bmuE <- Y/X2
+bseE  <- sqrt(Y/nhi)/X2
+
+estimates <- signif( matrix( cbind(c(bmuA, bseA),c(bmuE, bseE)), 2, 2), 3 )
+rownames(estimates) <- c('mean','se')
+colnames(estimates) <- c('ambient','elevated')
+
+bseq <- seq(.002,.007,length=1000)
+plot(bseq,dnorm(bseq,estimates['mean',1],estimates['se',1]),type='l',
+     xlab='beta',ylab='density')
+lines(bseq,dnorm(bseq,estimates['mean',2],estimates['se',1]),col=2)
+
+nboot <- 2000         #no. bootstrap estimates
+bvals <- matrix(0, nboot, 2) #matrix to hold estimates
+colnames(bvals) <- c('ambient','elevated')
+
+for(b in 1:nboot){
+  
+  bindex <- sample(ambient, nlo, replace=T) #sample with replacement
+  Y    <- mean(y[bindex])
+  X2   <- mean(x[bindex]^2)
+  bvals[b, 1] <- Y/X2
+  
+  bindex <- sample(elevated, nhi, replace=T) #sample with replacement
+  Y    <- mean(y[bindex])
+  X2   <- mean(x[bindex]^2)
+  bvals[b, 2] <- Y/X2
+}
+
+se <- apply(bvals, 2, sd)
+
+hist(bvals[,1],freq=F,nclass=20,xlim=c(0,.01))
+lines(density(bvals[,1]))
+ci1 <- quantile(bvals[,1],c(0.025,.975))
+abline(v=ci1,lty=2)
+
+elev <- hist(bvals[,2],nclass=20, plot=F)
+lines(elev$mids, elev$density, type='s')
+lines(density(bvals[,2]))
+ci2 <- quantile(bvals[,2],c(0.025,.975))
+abline(v=ci2,lty=2)
 
 #EOF

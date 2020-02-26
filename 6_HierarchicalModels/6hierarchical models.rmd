@@ -1,0 +1,806 @@
+---
+title: "6\\. hierarchical models"
+author: '[Jim Clark](http://sites.nicholas.duke.edu/clarklab/)'
+date: '`r Sys.Date()`'
+output:
+  pdf_document:
+    latex_engine: lualatex
+    toc: yes
+  html_document:
+    fig_caption: yes
+    highlight: kate
+    theme: sandstone
+    toc: yes
+    toc_depth: 3
+subtitle: env/bio 665 Bayesian inference for environmental models
+fontsize: 12pt
+---
+
+```{r colfmt, echo=F}
+ebreak <- "--------------------------- ===== ---------------------------"
+makeSpace <- function(){
+  outputFormat = knitr::opts_knit$get("rmarkdown.pandoc.to")
+  if(outputFormat == 'latex')
+    "\\bigskip"
+  else if(outputFormat == 'html')
+    "<br>"
+  else
+    "<br>"
+}
+colFmt = function(x,color){
+  outputFormat = knitr::opts_knit$get("rmarkdown.pandoc.to")
+  if(outputFormat == 'latex')
+    paste("\\textcolor{",color,"}{",x,"}",sep="")
+  else if(outputFormat == 'html')
+    paste("<font color='",color,"'>",x,"</font>",sep="")
+  else
+    x
+}
+```
+
+`r makeSpace()`
+
+  
+# resources
+
+## data file
+
+`dataTreeFACE.txt`
+
+## software
+
+`clarkFunctions2018.r`, `disperseFunctions.R`
+
+
+```{r clarkFunctions, message=FALSE, cache=FALSE}
+source('../clarkFunctions2020.r')
+```
+
+
+## readings
+
+[Assessing abiotic conditions influencing the longitudinal distribution of exotic brown trout](http://www.stat.colostate.edu/~hooten/papers/pdf/Meredith_etal_Bioinvasions_2017.pdf), Meredith et al. with ZINB to describe stream occupancy, *Biol Invasions*.
+
+[Hierarchical models of animal abundance and occurrence](http://cals.arizona.edu/classes/wfsc578/Royle%20&%20Dorazio%202006.%20Hierarchical%20models%20of%20animal%20abundance.pdf),  Royle and Dorazio. *J Agric, Biol, Environm Stat*.
+
+[Uncertainty Management in Coupled Physical-Biological Lower Trophic Level Ocean Ecosystem Models](http://tos.org/oceanography/article/uncertainty-management-in-coupled-physical-biological-lower-trophic-level-o), Wikle et al. describe the connections between a physical model and data, *Oceanography*.
+
+# objectives
+
+* identify fixed and random effects in models, understand what makes them 'hierarchical/
+
+* understand terms: *exchangeable*, *hyperprior*, *random effect*
+
+* construct a simple hierarchical model in R and in rjags
+
+* use DIC to select variables
+
+* fit a non-linear hierarchical model
+
+
+# a closer look at hierarchical structures
+
+I have introduced several levels of structure into Bayesian models.  I now consider model structure explicitly, calling attention to how models may be compartmentalized.  This compartmentalization is necessary for complex problems that may entail multiple sources of stochasticity that impinge in diverse ways.  
+
+## group differences
+
+In many ecological settings sample units, such as individual organisms, sample plots, lakes, or forest stands, are ‘different’, but not ‘independent’.  The same can be said for the jurisdictional units around which many types of data are organized (county, zip code, state, and so on).   In ecological studies of demography, individuals are often classified into different stages, each stage having associated parameter values for growth, survival, and fecundity.  These parameters are treated as independent, which, in turn, affects the classification scheme: classes with few individuals and few transitions from which to estimate parameters must be lumped into larger classes, regardless of ecological considerations.  These considerations can apply not only at the ‘stage’ level, but also at the individual level.  The mortality risk for one group may be importantly different from others in the same population.  Yet, the risks have many shared features.  Fecundity may depend on resource availability, which varies among populations (e.g., regional context), and within populations (individual differences).
+
+Modeling considerations for fecundity include whether to assume:
+
+A) a set of parameters $\theta$ that applies to all individuals or subgroups of a population, $y_j \sim Poi(\theta)$, $\theta \sim gamma(a, b)$
+
+B) fixed differences (independent parameters) for each subgroup  $y_j \sim Poi(\theta_j)$, $\theta_j \sim gamma(a, b)$, or 
+
+C) a distribution of parameters from which subgroup is to be drawn,  $y_j \sim Poi(\theta_j)$, $\theta_j \sim gamma(a_j, b_j)$, $a_j, b_j \sim h(A, B)$.
+
+(There is a fourth possibility, differences explained by covariates, which I take up later.)  
+
+If I assume ‘one size fits all’ (option A), I could miss the important group differences.  The ‘mean’ parameter that averages over populations and individuals might not really apply anywhere.  For example, an X$\%$ CI on parameter $\theta$ would not represent the true variability in fecundity  If the population varies, the CI obtained under the assumption of a uniform populations has no real application.  
+
+At the other extreme, it might be hard to justify treating subgroups as independent effects, and it may be impractical (option B).  Subgroups might have large differences in sample size (unbalanced data), such that it becomes difficult to classify individuals in a way that insures a sufficient sample size for each subgroup.  This is a common problem for spatial models, where data come from regions that differ in size and sampling intensity.  There can be a large number of independent parameters, many having little support and no predictive potential.
+
+Some of the examples already discussed demonstrate how to add a stage to the model such that effects are drawn from a distribution (option C).  This assumption admits the relationships that are often realistic for ecological data. The overall structure allows us to ‘borrow strength’ from the full population for the random effect that applies to a given subgroup.  Due to the way in which such models are constructed and analyzed, they are termed *hierarchical*, with the parameter model representing an additional stage.  Such models can sometimes be analyzed in a classical setting, e.g., using a likelihood that is marginalized over variability associated with random effects, or from a fully Bayesian perspective.  Classical approaches usually involve approximations based on assumptions of asymptotic normality.  
+
+A simple simulation can be used to illustrate this point.  The ‘correct’ model for this simulation is a population of $n = 10$ subgroups, from each of which I sample $n_j$ individuals.  I ‘observe’ the number of offspring for individuals in each group.  I assume that variability among groups enters as $\theta_j \sim gamma(10,1)$.  It is easy to simulate such a data set.  Draw $n$ values of $\theta_j$ from the gamma density followed by $n_j$ values of $y_j | \theta_j \sim Poi(\theta_j)$, where $n_j$ is the sample size of the $j^{th} group.  If I were attempting a comprehensive evaluation of a new model, I would draw many such data sets.  This one is simple, and one sample illustrates how the three assumptions affect inference on fecundity.  Here is a data set:
+
+```{r th1}
+n     <- 10
+nj    <- 2 + rpois(n,rexp(n,1/5))              # group sizes
+id    <- rep(1:n,times=nj)
+theta <- rgamma(n,10,1)
+y     <- rpois(sum(nj),theta[id])
+sy    <- tapply(y, id, sum)                    # group totals
+```
+
+In the next sections I fit parameters under the three assumptions.
+
+## prior gamma distribution
+
+Recall that a gamma prior distribution for $\theta$ is conjugate with the Poisson likelihood,
+
+$$
+\prod^n_i Poi(y_i | \theta) gamma(\theta | a, b) = gamma(\theta | a + n\bar{y}, b + n)
+$$
+I use this relationship below.
+
+## no group effects
+First I assume there are no group effects.  For option A, the posterior density is
+
+$$\theta|\mathbf{y},a,b \sim gamma \left( a + \sum_{ij} y_{ij}, b + \sum_{j}n_j \right)$$
+
+where $a$ and $b$ are prior parameter values.  Here are the values and a plot of prior and posterior
+
+```{r pth, fig.height=4, fig.cap='Posterior estimate of theta'}
+a <- 1
+b <- 1
+tseq <- seq(0,20,length=1000)
+plot(tseq,dgamma(tseq,a + sum(y),b + sum(nj)),xlim=range(tseq),
+     xlab='theta',ylab = '[theta]',type='l',lwd=2)
+ci <- qgamma(c(.5,.025,.975), a + sum(y), b + sum(nj))
+abline(v=ci, lty=2)
+```
+
+## group differences
+
+For option B, each group has an estimate, the conditional posterior for which is
+
+
+$$\theta_j|\mathbf{y},a,b \sim gamma \left( a + \sum_i y_{ij}, b + n_j \right)$$
+I might call these 'fixed effects' associated with with group $j$.  Here is a plot where the same prior parameter values are used for each group:
+
+```{r gth, fig.height=4, fig.cap='Group posteriors as fixed effects'}
+a <- 1
+b <- 1
+cij <- matrix(NA, n, 3)
+plot(tseq,dgamma(tseq, a + sum(y), b + sum(nj)),xlim=range(tseq),
+     xlab='theta',ylab = '[theta]',type='l',lwd=2)
+for(j in 1:n){
+  lines(tseq,dgamma(tseq, a + sy[j], b + nj[j]),type='l', col=j)
+  cij[j,] <- qgamma(c(.5,.025,.975), a + sy[j], b + nj[j])
+}
+```
+
+The variation among groups is large, due both to different parameter values and the variation in group sizes--recall that the standard error tends to decline with increases in $\sqrt{n}$.
+
+## group random effects
+
+For option C, I use Gibbs sampling, and conditional posteriors ‘borrowing strength’ from the population level parameters—the parameter $a$ is no longer fixed, but instead has a value for each group that is estimated from the data.  The MCMC algorithm includes the conditional 
+
+$$[a_j, b_j | \theta_j] \propto beta(\theta_j | a_j, b) [a_1, \dots, a_n, b]$$
+
+I will use a uniform distribution for the prior.  Here are simulated groups:
+
+```{r asim, eval=F}
+n  <- 20
+nj <- 5 + rpois(n,rexp(n,1/20))              # group sizes
+id <- rep(1:n,times=nj)
+aj <- rgamma(n,5,.5)             # hyperprior for groups
+bj <- rgamma(1,3,1)
+tj <- rgamma(n,aj,bj)            # group differences
+y  <- rpois(sum(nj), tj[id])
+sy <- tapply(y, list(id), sum)
+```
+
+Here is the estimate of $\theta$ assuming no structure, 
+
+```{r,  fig.height=4, fig.cap='Random data fitted as homogeneous'}
+a <- 1
+b <- 1
+tseq <- seq(0,20,length=1000)
+plot(tseq,dgamma(tseq, a + sum(y), b + sum(nj)),xlim=range(tseq),
+     xlab='theta',ylab = '[theta]',type='l',lwd=2)
+ci <- qgamma(c(.5,.025,.975), a + sum(y), b + sum(nj))
+abline(v=ci, lty=2)
+```
+
+Here is the Bayesian estimate assuming fixed effects:
+
+```{r, fig.height=4, fig.cap='Group posteriors as fixed effects'}
+cij <- matrix(NA, n, 3)
+plot(tseq,dgamma(tseq, a + sum(y), b + sum(nj)),xlim=range(tseq),
+     xlab='theta', ylab = '[theta]',type='l',lwd=2)
+for(j in 1:n){
+  lines(tseq,dgamma(tseq, a + sy[j], b + nj[j]),type='l', col=j)
+  cij[j,] <- qgamma(c(.5,.025,.975), a + sy[j], a + nj[j])
+}
+```
+
+
+Here is a function to sample values from the hyperparameters $a$ and $b$ with Metropolis.  Note that I sample from a normal distribution that is truncated at zero, meaning that the prior is flat:
+
+```{r updateab}
+
+updateAB <- function(tg, ag, bg, sy, nj){
+  
+  ap <- .tnorm(n, 0, 20, ag, 2)
+  bp <- .tnorm(1, 0, 20, bg, 2)
+  
+  pnow <- dgamma(tg, ag + sy, bg + nj, log=T) + 
+          dgamma(ag, 5, .5, log=T) + dgamma(bg, 3, 1, log=T)
+  pnew <- dgamma(tg, ap + sy, bp + nj, log=T)  + 
+          dgamma(ap, 5, .5, log=T) + dgamma(bp, 3, 1, log=T)
+  
+  z <- runif(1,0,1)
+  a <- exp( sum(pnew - pnow) )
+  if(z < a){
+    ag <- ap
+    bg <- bp
+  }
+  list(ag = ag, bg = bg)
+}
+```
+
+The MCMC algorithm includes the conditional posterior for option B together with conditional posteriors for these population-level parameters.  How do the three assumptions affect inference?
+
+```{r thGibbs, eval=T}
+ag <- rep(1,n)
+bg <- 1
+
+ng <- 5000
+tgibbs <- agibbs <- matrix(NA,ng,n)
+bgibbs <- rep(NA, ng)
+
+for(g in 1:ng){
+
+  tg  <- rgamma(n, ag + sy, bg + nj)
+  tmp <- updateAB(tg, ag, bg, sy, nj)
+  ag  <- tmp$ag
+  bg  <- tmp$bg
+  
+  tgibbs[g,] <- tg
+  agibbs[g,] <- ag
+  bgibbs[g] <- bg
+}
+```
+
+From the structure of this MCMC it is clear that there is a prior distribution for `tg`, which is itself random--there is prior distribution for `ag, bg`.
+
+```{r}
+plot(tseq,dgamma(tseq, a + sum(y), b + sum(nj)),xlim=range(tseq),
+     xlab='theta', ylab = '[theta]',type='l',lwd=2)
+for(j in 1:n){
+  dj <- density(tgibbs[,j])
+  lines(dj$x, dj$y, col=j, lty=2)
+}
+```
+
+I can compare this result to the case where groups are treated as fixed (B) or ignored (A),
+
+```{r}
+ci       <- qgamma(c(.5,.025,.975), a + sum(sy), b + sum(nj))
+ciRandom <- t( apply(tgibbs, 2, quantile, c(.5, .025, .975)) )
+ciFixed  <- matrix(NA, n, 3)
+for(j in 1:n){
+   ciFixed[j,] <- qgamma(c(.5,.025,.975), a + sy[j], b + nj[j]) # fixed
+}
+plot(ciFixed[,1], ciRandom[,1], xlim = range(ciFixed), ylim = range(ciRandom),
+     xlab='Fixed', ylab = 'Random')
+segments(ciFixed[,1], ciRandom[,2], ciFixed[,1], ciRandom[,3])
+segments(ciFixed[,2], ciRandom[,1], ciFixed[,3], ciRandom[,1])
+abline(0, 1, lty=2)
+
+text(ciFixed[,1], ciRandom[,1]+3, nj)   # show group size
+```
+
+Here is a comparison of credible interval widths:
+
+```{r}
+plot(apply(ciFixed[,2:3], 1, diff), apply(ciRandom[,2:3], 1, diff),
+     xlab='Fixed', ylab = 'Random')
+abline(0, 1, lty=2)
+```
+
+Assumption A produces a tight posterior density that misses the variation among groups.  Options B and C both admit structure, but in different ways.  In assumption B I treat the groups independently, restricting information to what was observed for the group.  Estimates for small groups are heavily influenced by the prior, which is fixed, whereas large groups are dominated by the observations (groups sizes are shown in the plot for each group).  
+
+With the hierarchical model small groups are heavily influenced by the overall population.  This is a difference from the model with fixed effects.
+
+# Mixed models
+
+**Mixed model** is a term used to describe a specific type of hierarchical structure in which some of the parameters in a linear model are treated as realizations of a stochastic process, rather than as constants.  Those that are treated as constants are termed **fixed effects**.  Those taken to be random are **random effects**.  These models are often analyzed with hierarchical Bayes, because the random effects constitute an additional stage.   
+
+## exchangebility
+
+Consider a study where organisms are classified in groups $j = 1, \dots m$, and these groups are expected to have different fecundity rates based on some recognizable attributes.  In observational studies of animals or permanent forest inventory plots I might assign an identifying label to an individual.  I view these labels as **exchangable**, in the sense that I assign them in no particular order.  If I observed these individuals repeatedly, I might assign a random effect to the individual.  The observations are 'grouped' by individual.  There are many individuals that could have been selected.  The ones I did sample were not chosen for their potentially specific (‘fixed’) influences.  It is not critical that the sample units have been drawn at random, only that their effects are viewed as random.  Again, this is an assumption that is useful when the cause of those differences cannot be identified.  Both location (e.g., sample plots) and individuals are often treated as random effects.
+
+
+
+Conversely, male/female is a difference that I probably do not view as **exchangable**, in the sense that the labels are not assigned at random.  Gender is a ‘fixed’ effect, because I suspect that future studies will likewise involve the same identifiable genders.  Depending on the study, I might recognize size, physiological, or behavioral differences associated with gender, e.g., plumage, reproductive effort, and so on.  If I analyze gender differences I would treat them as a **fixed effect**.
+
+## in a regression
+
+Consider a linear model with Gaussian error.  A random effects model for a regression parameter can be written with two terms, 
+
+$$y_{ij} = \beta + \alpha_j + \epsilon_{ij}$$
+
+The first term is the fixed effect.  It will have a prior distribution.  If $\alpha_j$ is a random effect assigned to the $j^{th}$ group, then it will have a prior distribution with parameters that also have prior distributions. 
+
+In a regression the random effects can be organized as a $q \times J$ matrix, with one row per group.  I give it a distribution, e.g., $vec(\boldsymbol{\alpha}) \sim MVN(0, \mathbf{V})$, where $\mathbf{V}$ is a $Jq \times Jq$ covariance matrix.  If there are predictors in the model I can write it this way:
+
+$$y_{ij} = \boldsymbol{\beta'}\mathbf{x}_{ij} + \boldsymbol{\alpha}_j \mathbf{w}_{ij} + \epsilon_{ij}$$
+
+where $\mathbf{x}_{ij}$ is a length-$p$ vector of covariates and/or factors that enter as fixed effects, $\mathbf{w}_{ij}$ is a subset of $\mathbf{x}_{ij}$ length-$q$ vector, where $q \leq p$, $\boldsymbol{\beta'}$ is the length-$p$ vector of fixed effects, and  $\boldsymbol{\alpha}_j$ is the length-$q$ vector of random effects for group $j$. It is the $j^{th}$ row in the random effects matrix. 
+
+For a simple model with random effects on both slope and intercept, $\mathbf{x}_{ij} = \mathbf{w}_{ij} =(1, x_{ij})'$, $\boldsymbol{\beta'} = (\beta_1, \beta_2)'$ $\boldsymbol{\alpha}_j = (\alpha_{j1}, \alpha_{j2})'$.  Now an observation in group $j$ has intercept $\beta_1 + \alpha_{j1}$ and slope $\beta_2 + \alpha_{j2}$.  If the model has a random intercept, but not a random slope, then all groups have slope $\beta_2$.
+
+The model for $n_j$ observations in group $j$ has this expected value:
+
+$$E \left[\mathbf{y}_j | \boldsymbol{\alpha'}_j \right] = \mathbf{X}_j \boldsymbol{\beta'} + \mathbf{W}_j \boldsymbol{\alpha'}_j$$
+
+The design matrices $\mathbf{X}_j$ and $\mathbf{W}_j$ have dimensions $n_j \times p$ and $n_j \times q$, respectively.  The vector of random effects has the distribution $\boldsymbol{\alpha} \sim MVN(\mathbf{0}, \mathbf{V})$, where $\mathbf{0}$ is the length-$qJ$ vector of zeros, and $\mathbf{V}$ is the $qJ \times qJ$ matrix of covariances.  Because this is a random effects model, there will also be a prior on $\mathbf{V} \sim IW(v, \mathbf{V}_0)$.
+
+The likelihood is
+
+$$\mathbf{y}_j \sim MVN \left( \mathbf{X} \boldsymbol{\beta} + \mathbf{W} \boldsymbol{\alpha}_{\mathbf{j}}, \sigma^2 \mathbf{I}_n \right)$$
+
+where $\boldsymbol{\alpha}_{\mathbf{j}}$ indicates the $n \times q$ matrix having rows indexed to the proper group for observation $i$. The full model is
+
+$$
+\begin{aligned}
+\boldsymbol{\beta}, \boldsymbol{\alpha}, \mathbf{V} | \mathbf{X}, \mathbf{y} 
+& \sim \prod_i^n MVN \left( \mathbf{X} \boldsymbol{\beta} + \mathbf{W} \boldsymbol{\alpha}_{\mathbf{j}}, \sigma^2 \mathbf{I}_n \right) \\
+& \times MVN \left( \boldsymbol{\beta} | 0, \mathbf{V}_b \right)
+MVN \left( vec(\boldsymbol{\alpha}) | 0, \mathbf{V} \right) IW(\mathbf{V} | v, \mathbf{V}_0)
+IG(\sigma^2 | s_1, s_2 )
+\end{aligned}
+$$
+Note that both $\boldsymbol{\beta}$ and $\boldsymbol{\alpha}$ have prior distributions.  However, the variance on $\boldsymbol{\alpha}$ also has a prior distribution, the inverse Wishart for the covariance between random effects.  This distribution will estimate the covariance between groups in their distribution.  In the example below, I make variances apriori independent, $\mathbf{V}^{-1}_{ii} = \tau_i \sim gamma(0.001, 0.001)$.
+
+## in jags
+
+### growth rate with fixed effects
+
+Here I use a heirarchical model to examine the effects of tree size (diameter), CO2 fertilization, and their interaction on growth rates.  There are large differences between individuals, so I include a random effect on trees.  I start first with a single-stage regression.  Here is a data set:
+
+```{r readData}
+data   <- read.table('../dataFiles/FACEtrees.txt',header=T)
+data$y <- log(data[,'dnow'])                                   # growth rate
+tmp    <- model.frame(y ~ j + i + diam*trt, data)
+ij     <- apply( cbind(tmp$j, tmp$i), 1, paste0, collapse='-') # tree, plot
+X      <- model.matrix(y ~ diam*trt, tmp)
+y      <- tmp$y
+n      <- length(y)
+```
+
+Here is model object for jags, which is written to a file `growthFixed.txt`:
+
+```{r model}
+cat( "model{
+    for(i in 1:n){
+      y[i]  ~ dnorm(mu[i],tau)
+      mu[i] <- b1 + b2*X[i,2] + b3*X[i,3] + b4*X[i,4]
+    }
+
+    tau     ~ dgamma(0.001,0.001)
+    sigma   <- sqrt(1/tau)
+    
+    b1 ~ dnorm(0.0,1.0E-06)
+    b2 ~ dnorm(0.0,1.0E-06)
+    b3 ~ dnorm(0.0,1.0E-06)
+    b4 ~ dnorm(0.0,1.0E-06)
+  }
+    ", fill=T, file="growthFixed.txt"
+)
+```
+
+Here I run the model and look at the output:
+
+```{r runFixed, warning=F, message=F, fig.height=3}
+library(rjags)
+treeData   <- list(y = y, X = X, n = n )
+parNames <- c('b1','b2','b3','b4', 'sigma')
+
+parInit <- function(){ list(sigma = runif(1,0,1)) }
+
+growFit <- jags.model(data=treeData, file="growthFixed.txt")
+print(growFit)
+
+update(growFit)
+
+growFit <- coda.samples(growFit, variable.names=c("b1","b2","b3","b4"), 
+                       n.iter=5000)
+
+tmp <- summary(growFit)
+print(tmp$statistics)
+
+par(mar=c(3,3,1,1))
+plot( as.mcmc(growFit) )
+
+betaFixed <- cbind( tmp$statistics[,1:2], tmp$quantiles[,c('2.5%','97.5%')] )
+```
+
+
+Here are the data and the best mean prediction for ambient (black) and elevated (red) treatments:
+
+```{r meanPred}
+xlim <- range(X[,'diam'])
+xseq <- seq(xlim[1],xlim[2],length=100)
+par(mfrow=c(1,2), bty='n', mar=c(4,4,3,1))
+plot(X[,'diam'], y, col=X[,'trt'] + 1, cex=.1, xlab='Diameter (cm)', 
+     ylab = 'log growth rate (cm/yr)')
+mu <- betaFixed[1,1] + betaFixed[2,1]*xseq
+lines(xseq, mu, lwd=2)
+lines(xseq, mu + betaFixed[3,1] + betaFixed[4,1]*xseq, lwd=2, col=2)
+legend('bottomright', c('ambient','elevated'), text.col=c(1,2), bty='n')
+```
+
+`r colFmt(ebreak,'blue')`
+
+`r colFmt('Exercise 1.','blue')` Interpret the main effects and interactions in this model.  
+
+`r colFmt(ebreak,'blue')`
+
+
+`r colFmt('Exercise 2.','blue')` Run the model again, including `nfert` (nitrogen fertilization) in addition to other variables.  Interpret its effect.  
+
+`r colFmt(ebreak,'blue')`
+
+`r makeSpace()`
+
+
+### random effects
+
+For random effects, I start with labels for the observations by tree:
+
+```{r randMod}
+tn    <- sort(unique(ij))   # tree labels
+ix    <- match(ij,tn)       # random effect by tree
+ntree <- max(ix)            # no. trees
+```
+
+There are `r ntree` individual trees.  Each observation is labeled by the tree to which it belongs in the vector `ix`.  To follow the jags model, I need to recogize the vectorization `ix[i]`, which gives me the individual identity of row `i`.  Now I vectorize again to get the random intercept assigned to this individual, `a1[ix[i]]`.  Here is a model:
+
+```{r hmod}
+cat( "model{
+    for(i in 1:n){
+      y[i]  ~ dnorm(mu[i],tau)
+      mu[i] <- b1 + b2*X[i,2] + b3*X[i,3] + b4*X[i,4] + 
+               a1[ix[i]] + a2[ix[i]]*X[i,2] + a3[ix[i]]*X[i,3] + a4[ix[i]]*X[i,4]
+    }
+    for(j in 1:ntree){
+      a1[j]  ~ dnorm(0.0,tau1)
+      a2[j]  ~ dnorm(0.0,tau2)
+      a3[j]  ~ dnorm(0.0,tau3)
+      a4[j]  ~ dnorm(0.0,tau4)
+    }
+    tau1   ~ dgamma(0.001,0.001)    #RE precision intercept
+    sigma1 <- 1/sqrt(tau1)          #RE variance intercept
+    tau2   ~ dgamma(0.001,0.001)    #RE precision diam
+    sigma2 <- 1/sqrt(tau2)          #RE variance diam
+    tau3   ~ dgamma(0.001,0.001)    #RE precision diam
+    sigma3 <- 1/sqrt(tau3)          #RE variance diam
+    tau4   ~ dgamma(0.001,0.001)
+    sigma4 <- sqrt(1/tau4)
+    tau    ~ dgamma(0.001,0.001)
+    sigma  <- sqrt(1/tau)
+    
+    b1 ~ dnorm(0.0,1.0E-06)
+    b2 ~ dnorm(0.0,1.0E-06)
+    b3 ~ dnorm(0.0,1.0E-06)
+    b4 ~ dnorm(0.0,1.0E-06)
+    }
+    ", fill=T,file="growthRE.txt" )
+```
+
+Note that there are fixed effects, `b1, ..., b4`.  Each random effect, `a1, ..., a4` has `r ntree` values.  Again, the index `ix` identifies the proper individual for each observation `i`.  
+
+The hierarchical nature of model comes from the fact that the variance for `a1`, given by `sigma1` also has a prior distribution.  
+
+Here is a model fit:
+
+```{r fith}
+treeData   <- list(y = y, X = X, ix = ix, ntree = ntree, n = n)
+
+growthRE <- jags.model(data=treeData, file="growthRE.txt")
+
+print(growthRE)
+
+update(growthRE)
+
+growthRE <- coda.samples(growthRE, 
+                         variable.names=c("b1","b2","b3","b4",
+                                          "a1","a2","a3","a4",
+                                          "sigma1","sigma2","sigma3","sigma4"), 
+                       n.iter=5000)
+
+tmp <- summary(growthRE)
+print(tmp$statistics)
+
+par(mar=c(3,3,1,1))
+plot( as.mcmc(growthRE) )
+
+betaRE <- cbind( tmp$statistics[,1:2], tmp$quantiles[,c('2.5%','97.5%')] )
+
+
+```
+
+Here are parameter estimates:
+
+```{r plotH}
+rePars <- getJagsPars(growthRE)
+fixed  <- rePars$fixed
+beta   <- fixed[1:4,1]
+alpha  <- rePars$mean
+```
+
+Here are mean predictions for diameter at two CO2 treatments.
+
+```{r predH}
+# predicted mean
+ylim <- range(y)
+mu   <- beta[1] + beta[2]*xseq
+plot(xseq, mu, type='l',lwd=2, ylim=ylim, xlab='Diameter (cm)', ylab='')
+mu2 <- mu + beta[3] + beta[4]*xseq
+lines(xseq, mu2, type='l',lwd=2, col=2)
+
+# size range by individual
+irange <- matrix( unlist(by(X[,'diam'],ix,range, na.rm=T)),ncol=2,byrow=T)
+
+for(i in 1:ntree){
+  xi <- xseq[xseq > irange[i,1] & xseq < irange[i,2]]
+  mu <- beta[1] + alpha[i,1] + (beta[2] + alpha[i,2])*xi
+  wi <- which(ix == i)[1]
+  if(X[wi,'trt'] == 0){
+    lines(xi, mu, col='grey')
+    next
+  }
+  mu <- mu + beta[3] + alpha[i,3] + (beta[4] + alpha[i,4])*xi 
+  lines(xi, mu, type='l',col=2)
+}
+```
+
+Here is a histogram of alpha values for elevated trees:
+
+```{r}
+elev <- which(X[,'trt'] == 1)
+hist((alpha[ix[elev], 3]), nclass=30)
+```
+
+
+`r colFmt(ebreak,'blue')`
+
+`r colFmt('Exercise 4.','blue')` Interpret the main effects and interactions in this hierarchical model.  How does it compare with the model that included only fixed effects?  Think about the role of variation between individuals versus within individuals.  Speculate on why the differences.
+
+`r colFmt(ebreak,'blue')`
+
+
+```{r, disperseGraph, out.width = "450px", echo=F}
+knitr::include_graphics("disperseGraph.pdf")
+``` 
+
+## deviance information criterion
+
+The deviance information criterion (DIC) is an index used for selection in hierarchical models, based on the deviance, $D(\theta) = -2 \log( [\mathbf{y} | \theta] )$, where $\theta$ is a vector of fitted parameters, and $[\mathbf{y} | \theta]$ is the likelihood.  We need a penalty for model complexity, i.e., the number of parameters.  The problem with model selection for hierarchical models is the fact I do not know how to 'count' them.  Each parameter is part of a distribution.  
+
+The DIC is given by 
+
+$$DIC = D(\bar{\theta}) + 2p_D$$
+
+where $D(\bar{\theta})$ is the deviance calculated at the posterior mean parameter values, and $p_D = \bar{D} - D(\bar{\theta})$ is the 'effective number of parameters'.  This is penalty for model complexity.  The model with lowest DIC is viewed as the best model.
+
+
+
+`r colFmt(ebreak,'blue')`
+
+`r colFmt('Exercise 5.','blue')` Include nitrogen fertilization, `nfert` to the hierarchical analysis.  Use DIC to determine if it improves the model.
+
+`r colFmt(ebreak,'blue')`
+
+
+
+# hierarchical analysis for source detection
+
+Hierarchical models are not just about random effects or even about regression.  Almost any process can be modeled hierarchically.  In this example, I consider source detection, where the 'detectors' are seed traps.  If I can attribute those seeds to trees in the stand, then I know about seed production and about seed dispersal.  I can go further, by fitting models to variables that affect fecundity.
+
+## challenges
+
+Here are some challenges:
+
+*	I cannot directly observe seed on trees
+
+*	Each seed trap collects seed from all trees
+
+*	There may be too many trees
+
+*	Variation in seed rain may be weakly related to sources
+
+*	Gender of trees may be unknown
+
+*	Some (many) trees may be far from seed traps
+
+## the model
+
+Consider $K$ seed traps placed in a forest stand to collect seeds from trees of all species.  Focus on a particular species having $n$ trees.  I wish to estimate the fecundity of trees over $t = 1, \dots, T$ years.  A hypothetical map shows a spatial arrangement of trees and seed traps.  This is a source-detection problem, where trees are sources of seed, and seed traps are detectors.
+
+A model for multiple sources can look like this
+
+$$
+\begin{aligned}
+y_{k,t} &\sim Poi(g_{k,t}) \\
+\mathbf{g}_t &= \mathbf{Mf}_t
+\end{aligned}
+$$
+where $\mathbf{g}_t$ is the length-$m$ vector of expected seeds at each seed trap, $\mathbf{M}$ is a $K \times n$ kernel matrix having elements
+
+$$M(r_{ki}; u) = \frac{u}{\pi (u + r^2_{ik})^2}$$
+and $\mathbf{f}_t$ is the vector of fecundities for the $n$ trees.  The kernel contains fitted parameter $u$ and includes the distance between trap $k$ and tree $i$.  
+
+I focus for a moment on the expected values in vector $\mathbf{g}_t$.  With known $\mathbf{g}_t$ I could simply solve for the vector of sources, $\mathbf{f}_t = \left( \mathbf{M}' \mathbf{M} \right)^{-1} \mathbf{M}' \mathbf{g}_t$, but this only works it there are more seed traps than trees, i.e., $K > n$.  (There are additional complications, e.g., the solution can include negative sources.)  Because I are using the same traps to collect seeds from all trees, there will be some abundant species having more individuals on plots than there are seed traps.  If I use this model where there are fewer traps than trees, it may appear to converge to something, but, in fact, there is not enough information.  
+
+The problem is compounded by kernel shape.  The kernel may not distinguish sources over some range of distances.  Trees far from all traps may be in the flat tail of the kernel.  Conversely, if many nearby trees have overlapping seed shadows, there may be little variation between traps.  Due to the shape of the kernel, even when there are large numbers of traps, there may be combinations of source estimates that fit the seed data equally well.
+
+Here is a Bayesian analysis where interest focuses on the variables affecting $f_{i,t}$ and on the dispersal parameter $u$,
+
+$$\prod_{t=1}^T \prod_{k=1}^K Poi(y_{k,t} | g_{k,t}) \prod_{t=1}^T \prod_{i=1}^n N(\log f_{i,t} | \mathbf{x}'_{i,t}\beta, \sigma^2) N_+(u | u_1, u_2) \Pi_{q=1}^QN(\beta_q|b, B)$$
+
+The prior distribution for $\beta$ is non-informative (large $B$).  The prior distribution for dispersal is truncated normal, restricted to positive values.  In the code that follows I use a simple Gibbs sampler with Metropolis.  
+
+First source the function file and set up a simulated data set.  The 'data' will consist of `ntree` trees and `ntrap` seed traps observed for `nyr` years.  Trees and seed traps occupy plots `plotWide` in width.  The locations of trees and seed traps will be simulated for the plot.  I assume that there are two predictors and an intercept.  The first prediction could be the tree diameter, but any predictors are possible.
+
+
+```{r dispfunctions}
+source('disperseFunctions.R')
+nyr   <- 20              #no. years
+ntree <- 50              #no. trees
+plotWide <- 100          #width of square plot
+
+ntrap <- 100             #no. seed traps
+upar  <- 250             #dispersal parameter (m^2)
+
+xnames <- c('intercept','diam','pdsi')  #predictors
+beta   <- matrix(c(.2,.08,.5),ncol=1)   #parameter values
+
+tmp <- simFecn()            #simulate dispersal data
+for(k in 1:length(tmp)) assign( names(tmp)[k], tmp[[k]] )
+n <- nrow(X)
+
+fTrue <- fMat
+q     <- length(beta)
+upar  <- 100              #initial dispersal parameter
+```
+
+I initialize parameters $\beta$, represented as `bg`, using an optimization function `nlminb` and then calculate the fecundity matrix.  Again, the model for fecundity is
+
+$$E[\log(f_{i,t})] = \mathbf{x}'_{i,t} \beta$$
+
+The $n \times T$ matrix of $f_{i,t}$ values in the code is `fMat`.  
+
+
+```{r initFecund}
+ug   <- 100
+bg   <- matrix( nlminb(beta*0,fecLik,lower=c(-2,0,0), 
+                       upper = c(1,1,1))$par, q)
+fMat <- matrix(exp(X%*%bg),ntree,nyr,byrow=T)
+
+priorB  <- bg*0            # prior coefficient mean/variance
+priorVB <- diag(100,q)     
+
+priorU  <- 100             # dispersal parameter mean/variance
+priorVU <- 1000
+```
+
+This code simulates the posterior with Gibbs sampling, with Metropolis for the individual steps:
+
+```{r mcmc, message=F, warning=F}
+burnin <- 100
+ng     <- 500   #MCMC iterations
+init   <- list(bg = bg, ug = ug, fMat = fMat) # initialize
+
+tmp <- gibbsFecn(init)                        # MCMC
+
+for(k in 1:length(tmp)) assign( names(tmp)[k], tmp[[k]] )
+for(k in 1:length(tmp$lastValues)) assign( names(tmp$lastValues)[k], tmp$lastValues[[k]] )
+
+# restart from last values
+ng <- 2000
+
+tmp <- gibbsFecn(init = lastValues)
+
+for(k in 1:length(tmp)) assign( names(tmp)[k], tmp[[k]] )
+for(k in 1:length(tmp$lastValues)) assign( names(tmp$lastValues)[k], tmp$lastValues[[k]] )
+for(k in 1:length(tmp$estimates)) assign( names(tmp$estimates)[k], tmp$estimates[[k]] )
+for(k in 1:length(tmp$predictions)) assign( names(tmp$predictions)[k], tmp$predictions[[k]] )
+```
+
+
+
+Here are some plots:
+
+```{r map1, fig.cap="Tree sizes scaled by fecundity estimate (brown) and coefficient of variation (blue)"}
+par(mfrow=c(1,2),mar=c(1,1,3,1))
+mapSpecies(xytree[,1],xytree[,2],20*diamMat[,1]/max(diamMat))
+mapSpecies(xytrap[,1],xytrap[,2],500*seedMat[,1]/max(seedMat),add=T,
+           sym='squares',colVec='brown')
+title('Trees, seed traps', cex=.8)
+
+mapSpecies(xytree[,1],xytree[,2],800*fMu[,1]/max(fMu))
+mapSpecies(xytrap[,1],xytrap[,2],500*seedMat[,1]/max(seedMat),add=T,
+           sym='squares',colVec='brown')
+mapSpecies(xytree[,1],xytree[,2],200*fSe[,1]/fMu[,1],add=T,colVec = 'blue')
+title('Est fecundity, CV', cex=.8)
+```
+
+I show posterior mean fecundity estimates and standard errors for the map in the figure.  In the first figure, the sizes of black tree symbols are proposal to tree diameter.  The sizes of black tree symbols are proportional to estimated fecundity rather than diameter.  With each estimate is a green circle showing the posterior mean standard error divided by the posterior mean estimate.  Large standard errors (poor estimates) are associated with trees that are distant from seed traps.  These individuals could have a large range of fecundities without influencing the fit.  Said another way, seed traps provide minimal information on these individuals.
+
+It is important to recognize that the model appears to be fine for prediction.   In fact, we could do a terrible job of estimating many of the sources and still do ok at predicting seed densities.  However, if interest is in estimating fecundity, then there is still a problem.
+
+Note how the largest uncertainty (coefficient of variation CV) tends to occur in areas poorly represented by seed traps.
+
+Here are estimates of fecundity and predictions of fecundity and seed data:
+
+```{r map3, fig.cap="Estimates and predictions for the source strength model"}
+par(mfrow=c(2,2), bty='n', mar=c(4,3,3,1))
+plotObsPred(seedMat,sPredMu,nPerBin=40)
+abline(0,1,lty=2)
+title('Seed prediction')
+
+plot(fTrue,fMu,pch=3)
+segments(fTrue,fMu - fSe, fTrue, fMu + fSe)
+abline(0,1,lty=2)
+title('Estimated fecundity')
+
+plot(fTrue,fPredMu,pch=3)
+segments(fTrue,fPredMu - fPredSe, fTrue, fMu + fSe)
+abline(0,1,lty=2)
+title('Predicted fecundity')
+
+rseq <- matrix(seq(-50, 50, length=50),1)  # predict kernel
+nsim <- 200
+gs <- sample(burnin:ng, nsim, replace = T)
+xs <- colMeans(X)
+kmat <- matrix(0,nsim,length(rseq))
+i    <- 1
+for(g in gs){
+  fg     <- exp(xs%*%matrix(bchain[g,],ncol=1))
+  kmat[i,] <- getKern(uchain[g],rseq)*fg[1]
+  i <- i + 1
+}
+tmp <- apply(kmat,2,quantile,c(.5,.025,.975))
+plot(rseq,tmp[1,],type='l',lwd=2, ylim=c(0,max(tmp)),
+     xlab='Distance')
+lines(rseq,tmp[2,],lty=2)
+lines(rseq,tmp[3,],lty=2)
+title('Dispersal kernel')
+```
+
+Note that the intermediate stage of the model, the fecundities of each tree are tightly predicted by the model, based solely on inputs $\mathbf{X}$ and seed traps $\mathbf{y}$.  This source-strength model demonstrates a hierarchical model where one stage (seed observations) convolve inputs from a lower stage (individual trees).
+
+# reprise
+
+Fixed and random effects in models represent a common type of hierarchical model.  Random effects can be used when group differences are viewed as having been drawn at random for a large population of such groups, i.e., they are *exchangeable*.  A random effects model may be limited to random intercepts.  Or it can additionally have random slopes.  The effects become random when I add a prior on the prior--a *hyperprior*.  
+
+Hierarchical models submit to Gibbs sampling, just like single-stage models.  They can be fitted in R, including in jags.
+
+DIC provides a simple index to select variables in hierarchical models.  It does so by estimating the effective number of parameters in the model and uses it as the penatly for model complexity.
+
+Hierarchical models can apply to all kinds of problems, where additional stages allow us to specify and compute based on conditional relationships.
+
+
+
+# appendix
+
+## sample random effects in linear model.
+
+Consider the model
+
+$$\alpha_j | \boldsymbol{\beta} \propto \prod_{i \in \{j\}} N(y_{ij} | \mathbf{x'}_{ij} \boldsymbol{\beta} + \mathbf{w'}_{ij} \boldsymbol{\alpha}_j )  \times MVN( \boldsymbol{\alpha}_j | 0, \mathbf{A})$$
+
+Let $z_{ij} = y_{ij} - \mathbf{x'}_{ij} \boldsymbol{\beta}$, $\mathbf{\tilde{W}}$ is the $n \times qJ$ matrix and $\boldsymbol{\tilde{\alpha}}$ is a length-$qJ$ vector.
+
+
+$$\alpha | \boldsymbol{\beta} \propto  N(\mathbf{Y} | \mathbf{X} \boldsymbol{\beta} + \mathbf{\tilde{W}} \boldsymbol{\tilde{\alpha}}, \sigma^2 )  \times MVN( \boldsymbol{\alpha}_j | 0, \mathbf{A})$$
+
+The random effects design matrix columns for each predictor and group--it is sparse.  Sampling is done with
+
+$$
+\begin{aligned}
+\boldsymbol{\alpha} &\sim MVN(\mathbf{V}\mathbf{v},\mathbf{V}) \\
+\mathbf{V}^{-1} &= \frac{1}{\sigma^2} \mathbf{\tilde{W}'} \mathbf{\tilde{W}} + \mathbf{A}^{-1} \\
+\mathbf{v} &= \frac{1}{\sigma^2} \mathbf{\tilde{W}'}( \mathbf{Y} - \mathbf{X} \boldsymbol{\beta})
+\end{aligned}
+$$
+
+
+
+
+
