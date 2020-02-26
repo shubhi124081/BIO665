@@ -3,19 +3,50 @@
 # Author:  Margaret Swift
 # Contact: margaret.swift@duke.edu
 
-# Description
+# Scratch work for class and Jim's RMD.
 
-#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 # LOADING
 rm(list=ls())
 setwd(dirname(rstudioapi::getSourceEditorContext()$path))
 source('../clarkFunctions2020.R')
+library(tidyverse)
 
-#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 # FUNCTIONS
 
-#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 # MAIN
+
+#-------------------------------------------------------------------------------
+# In Class: MLE for a few data points
+mu   <- 0
+n <- 1000
+y    <- rnorm(n, mu)
+MLE <- ( n/2 * (1/2 / sum(y-mu)^2)) ^ ( 2 /(n+2) ) #approx
+MLE2 <-  1/n * sum((y-mu)^2) #actual
+nseq <- 100
+mseq <- seq(0.3,3,length=nseq) * MLE #show likelihood about the MLE
+
+# TIDY version
+compute_likelihood<- function(x) { sum(dnorm(y, sd=sqrt(x), log=T)) }
+tibble(mseq=mseq) %>%
+  rowwise() %>% 
+  mutate(cur_likelihood=compute_likelihood(mseq)) %>% 
+  ggplot() + geom_line(aes(x=mseq,y=cur_likelihood)) + 
+   geom_vline(xintercept = MLE, color='red') +
+   geom_vline(xintercept = MLE2, color='blue') + 
+   ggtitle("TIDY")
+
+# NOT TIDY
+like <- unlist(lapply(mseq, function(x) sum(dnorm(y, sd=sqrt(x), log=T))))
+ggplot() + geom_line(aes(x=mseq,y=like)) + 
+  geom_vline(xintercept = MLE, color='red') +
+  geom_vline(xintercept = MLE2, color='blue') +
+  ggtitle("NOT TIDY :(")
+
+#-------------------------------------------------------------------------------
+# JIM'S NOTES
 
 # MLE for a single data point
 mu   <- 0
@@ -24,6 +55,7 @@ mseq <- seq(-4,4,length=100)
 like <- dnorm(mseq,y)
 plot(mseq,like,type='l')
 abline(v=y,lty=2)
+
 
 # 95% CI
 plot(mseq,like,type='l')
