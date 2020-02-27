@@ -179,6 +179,31 @@ I = - \frac{d^2 \log L(\mu)}{d \mu^2}\bigg\rvert_{\hat{\mu}}
 <li><p>The form of the Bayesian standard error and the standard error from Fisher Information look different. Can you explain why numerically they are similar? [Hint: think about sample size <span class="math inline">\(n\)</span>].</p></li>
 </ol>
 </div>
+<div id="group-exercise" class="section level1">
+<h1>Group exercise</h1>
+<p>I want to get a feel for the uncertainty on the estimate of the variance for a Gaussian model for continuous observations <span class="math inline">\(y\)</span>. I would like to compare different methods.</p>
+<ol style="list-style-type: decimal">
+<li><p>Find the MLE for the variance. If you have time to kill, derive the Fisher information and the SE.</p></li>
+<li><p>Generate bootstrapped estimates for the uncertainty.</p></li>
+<li><p>Complete a Bayesian analysis, choose a prior. Derive the result, then use MCMC.</p></li>
+</ol>
+<p>Compare the estimates for different sample sizes.</p>
+<p>To find the MLE, we have an approximate Gaussian density:</p>
+<p><span class="math display">\[
+(2\pi\sigma^2)^{-n/2}\exp\left\{ -\frac12 \frac{(\sum y_i-\mu)^2}{\sigma^2}\right\}
+\propto 
+(\sigma^2)^{-n/2}\exp\left\{ -\frac12 \frac{(\sum y_i-\mu)^2}{\sigma^2}\right\}
+\]</span> took the log, found the first derivative, and set it equal to zero:</p>
+<p><span class="math display">\[
+\frac{d}{d\sigma^2}\left[-\frac{n}{2}\log(\sigma^2) -\frac12 (\sum y_i-\mu)^2(\sigma^2)^{-1}\right]
+= -\frac{n}{2\sigma^2} + \frac{1}{2(\sigma^2)^2}\left(\sum y_i-\mu\right)^2 = 0
+\]</span></p>
+<p><span class="math display">\[
+\frac{n}{2\sigma^2} = \frac{1}{2(\sigma^2)^2}\left(\sum y_i-\mu\right)^2
+\]</span> <span class="math display">\[
+\sigma^2_{MLE} = \frac{1}{n}\left(\sum y_i-\mu\right)^2
+\]</span></p>
+<p>The MLE we found for variance is 1.063.</p>
 <div id="appendix" class="section level2">
 <h2>Appendix</h2>
 <div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb1-1" data-line-number="1"><span class="co">#----------------------------------------------------------------------------</span></a>
@@ -186,7 +211,7 @@ I = - \frac{d^2 \log L(\mu)}{d \mu^2}\bigg\rvert_{\hat{\mu}}
 <a class="sourceLine" id="cb1-3" data-line-number="3">knitr<span class="op">::</span>opts_chunk<span class="op">$</span><span class="kw">set</span>(<span class="dt">echo=</span><span class="ot">FALSE</span>, <span class="dt">eval=</span><span class="ot">TRUE</span>, <span class="dt">cache=</span><span class="ot">TRUE</span>)</a>
 <a class="sourceLine" id="cb1-4" data-line-number="4">pacman<span class="op">::</span><span class="kw">p_load</span>(ggplot2)</a>
 <a class="sourceLine" id="cb1-5" data-line-number="5"><span class="kw">source</span>(<span class="st">'../clarkfunctions2020.R'</span>)</a>
-<a class="sourceLine" id="cb1-6" data-line-number="6">Rcpp<span class="op">::</span><span class="kw">sourceCpp</span>(<span class="st">'../cppFns.cpp'</span>)</a>
+<a class="sourceLine" id="cb1-6" data-line-number="6"><span class="co"># Rcpp::sourceCpp('../cppFns.cpp')</span></a>
 <a class="sourceLine" id="cb1-7" data-line-number="7"><span class="co"># any libraries and data here</span></a>
 <a class="sourceLine" id="cb1-8" data-line-number="8"></a>
 <a class="sourceLine" id="cb1-9" data-line-number="9"><span class="co">#----------------------------------------------------------------------------</span></a>
@@ -203,7 +228,14 @@ I = - \frac{d^2 \log L(\mu)}{d \mu^2}\bigg\rvert_{\hat{\mu}}
 <a class="sourceLine" id="cb1-20" data-line-number="20"><span class="co">## EXERCISE 3</span></a>
 <a class="sourceLine" id="cb1-21" data-line-number="21"></a>
 <a class="sourceLine" id="cb1-22" data-line-number="22"><span class="co">#----------------------------------------------------------------------------</span></a>
-<a class="sourceLine" id="cb1-23" data-line-number="23"><span class="co">## EXERCISE 4</span></a></code></pre></div>
+<a class="sourceLine" id="cb1-23" data-line-number="23"><span class="co">## EXERCISE 4</span></a>
+<a class="sourceLine" id="cb1-24" data-line-number="24"></a>
+<a class="sourceLine" id="cb1-25" data-line-number="25"><span class="co">#----------------------------------------------------------------------------</span></a>
+<a class="sourceLine" id="cb1-26" data-line-number="26"><span class="co">## GROUP EXERCISE</span></a>
+<a class="sourceLine" id="cb1-27" data-line-number="27"></a>
+<a class="sourceLine" id="cb1-28" data-line-number="28">mu &lt;-<span class="st"> </span><span class="dv">0</span>; n &lt;-<span class="st"> </span><span class="dv">1000</span>; y &lt;-<span class="st"> </span><span class="kw">rnorm</span>(n, mu)</a>
+<a class="sourceLine" id="cb1-29" data-line-number="29">MLE &lt;-<span class="st"> </span><span class="dv">1</span><span class="op">/</span>n <span class="op">*</span><span class="st"> </span><span class="kw">sum</span>((y<span class="op">-</span>mu)<span class="op">^</span><span class="dv">2</span>)</a></code></pre></div>
+</div>
 </div>
     </section>
   </div>

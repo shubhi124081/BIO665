@@ -14,7 +14,7 @@ output:
 knitr::opts_chunk$set(echo=FALSE, eval=TRUE, cache=TRUE)
 pacman::p_load(ggplot2)
 source('../clarkfunctions2020.R')
-Rcpp::sourceCpp('../cppFns.cpp')
+# Rcpp::sourceCpp('../cppFns.cpp')
 # any libraries and data here
 
 #----------------------------------------------------------------------------
@@ -91,6 +91,48 @@ c) The form of the Bayesian standard error and the standard error from Fisher In
 
 ```
 
+# Group exercise
+
+I want to get a feel for the uncertainty on the estimate of the variance for a Gaussian model for continuous observations $y$.  I would like to compare different methods.
+
+1. Find the MLE for the variance.  If you have time to kill, derive the Fisher information and the SE.
+
+2. Generate bootstrapped estimates for the uncertainty.
+
+3. Complete a Bayesian analysis, choose a prior. Derive the result, then use MCMC.
+
+Compare the estimates for different sample sizes.
+
+```{r group}
+#----------------------------------------------------------------------------
+## GROUP EXERCISE
+
+mu <- 0; n <- 1000; y <- rnorm(n, mu)
+MLE <- 1/n * sum((y-mu)^2)
+```
+
+To find the MLE, we have an approximate Gaussian density:
+
+$$
+(2\pi\sigma^2)^{-n/2}\exp\left\{ -\frac12 \frac{(\sum y_i-\mu)^2}{\sigma^2}\right\}
+\propto 
+(\sigma^2)^{-n/2}\exp\left\{ -\frac12 \frac{(\sum y_i-\mu)^2}{\sigma^2}\right\}
+$$
+took the log, found the first derivative, and set it equal to zero:
+
+$$
+\frac{d}{d\sigma^2}\left[-\frac{n}{2}\log(\sigma^2) -\frac12 (\sum y_i-\mu)^2(\sigma^2)^{-1}\right]
+= -\frac{n}{2\sigma^2} + \frac{1}{2(\sigma^2)^2}\left(\sum y_i-\mu\right)^2 = 0
+$$
+
+$$
+\frac{n}{2\sigma^2} = \frac{1}{2(\sigma^2)^2}\left(\sum y_i-\mu\right)^2
+$$
+$$
+\sigma^2_{MLE} = \frac{1}{n}\left(\sum y_i-\mu\right)^2
+$$
+
+The MLE we found for variance is `r round(MLE,4)`.
 
 ## Appendix {#appendix}
 
