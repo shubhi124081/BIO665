@@ -1,6 +1,6 @@
 ---
 title: "Homework 5 Responses"
-author: "(Nicholas Bruns), Zeyi Han, Shubhi Sharma, Margaret Swift"
+author: "Zeyi Han, Shubhi Sharma, Margaret Swift"
 date: "2/24/2020"
 output:
   prettydoc::html_pretty:
@@ -91,7 +91,7 @@ c) The form of the Bayesian standard error and the standard error from Fisher In
 
 ```
 
-# Group exercise
+## Group exercise
 
 I want to get a feel for the uncertainty on the estimate of the variance for a Gaussian model for continuous observations $y$.  I would like to compare different methods.
 
