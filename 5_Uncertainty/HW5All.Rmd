@@ -95,20 +95,17 @@ c) The form of the Bayesian standard error and the standard error from Fisher In
 
 I want to get a feel for the uncertainty on the estimate of the variance for a Gaussian model for continuous observations $y$.  I would like to compare different methods.
 
-1. Find the MLE for the variance.  If you have time to kill, derive the Fisher information and the SE.
-
-2. Generate bootstrapped estimates for the uncertainty.
-
-3. Complete a Bayesian analysis, choose a prior. Derive the result, then use MCMC.
-
-Compare the estimates for different sample sizes.
+1. Find the MLE for the variance.  If you have time to kill, derive the Fisher information and the SE. Compare the estimates for different sample sizes.
 
 ```{r group}
 #----------------------------------------------------------------------------
 ## GROUP EXERCISE
 
-mu <- 0; n <- 1000; y <- rnorm(n, mu)
-MLE <- 1/n * sum((y-mu)^2)
+MLE <- function(n) {
+  mu <- 0; 
+  y <- rnorm(n, mu)
+  return(1/n * sum((y-mu)^2))
+}
 ```
 
 To find the MLE, we have an approximate Gaussian density:
@@ -132,7 +129,16 @@ $$
 \sigma^2_{MLE} = \frac{1}{n}\left(\sum y_i-\mu\right)^2
 $$
 
-The MLE we found for variance is `r round(MLE,4)`.
+The MLEs we found for variance for $n=1, 10, 1000$ are, respectively, 
+`r round(MLE(1),4)`, `r round(MLE(10),4)`, and `r round(MLE(1000),4)`. As you can
+see, the variance comes closer and closer to the true variance, 1, as the sample size 
+increases.
+
+2. Generate bootstrapped estimates for the uncertainty.
+
+3. Complete a Bayesian analysis, choose a prior. Derive the result, then use MCMC.
+
+
 
 ## Appendix {#appendix}
 

@@ -11,7 +11,7 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
-<meta name="author" content="(Nicholas Bruns), Zeyi Han, Shubhi Sharma, Margaret Swift" />
+<meta name="author" content="Zeyi Han, Shubhi Sharma, Margaret Swift" />
 
 
 <title>Homework 5 Responses</title>
@@ -133,7 +133,7 @@ code span.ot { color: #007020; }
 <header>
 <div class="inner">
 <h1 class="title toc-ignore">Homework 5 Responses</h1>
-<h3 class="author">(Nicholas Bruns), Zeyi Han, Shubhi Sharma, Margaret Swift</h3>
+<h3 class="author">Zeyi Han, Shubhi Sharma, Margaret Swift</h3>
 <h3 class="date">2/24/2020</h3>
 </div>
 </header>
@@ -179,15 +179,12 @@ I = - \frac{d^2 \log L(\mu)}{d \mu^2}\bigg\rvert_{\hat{\mu}}
 <li><p>The form of the Bayesian standard error and the standard error from Fisher Information look different. Can you explain why numerically they are similar? [Hint: think about sample size <span class="math inline">\(n\)</span>].</p></li>
 </ol>
 </div>
-<div id="group-exercise" class="section level1">
-<h1>Group exercise</h1>
+<div id="group-exercise" class="section level2">
+<h2>Group exercise</h2>
 <p>I want to get a feel for the uncertainty on the estimate of the variance for a Gaussian model for continuous observations <span class="math inline">\(y\)</span>. I would like to compare different methods.</p>
 <ol style="list-style-type: decimal">
-<li><p>Find the MLE for the variance. If you have time to kill, derive the Fisher information and the SE.</p></li>
-<li><p>Generate bootstrapped estimates for the uncertainty.</p></li>
-<li><p>Complete a Bayesian analysis, choose a prior. Derive the result, then use MCMC.</p></li>
+<li>Find the MLE for the variance. If you have time to kill, derive the Fisher information and the SE. Compare the estimates for different sample sizes.</li>
 </ol>
-<p>Compare the estimates for different sample sizes.</p>
 <p>To find the MLE, we have an approximate Gaussian density:</p>
 <p><span class="math display">\[
 (2\pi\sigma^2)^{-n/2}\exp\left\{ -\frac12 \frac{(\sum y_i-\mu)^2}{\sigma^2}\right\}
@@ -203,7 +200,12 @@ I = - \frac{d^2 \log L(\mu)}{d \mu^2}\bigg\rvert_{\hat{\mu}}
 \]</span> <span class="math display">\[
 \sigma^2_{MLE} = \frac{1}{n}\left(\sum y_i-\mu\right)^2
 \]</span></p>
-<p>The MLE we found for variance is 1.063.</p>
+<p>The MLEs we found for variance for <span class="math inline">\(n=1, 10, 1000\)</span> are, respectively, 0.0839, 0.2676, and 1.0723. As you can see, the variance comes closer and closer to the true variance, 1, as the sample size increases</p>
+<ol start="2" style="list-style-type: decimal">
+<li><p>Generate bootstrapped estimates for the uncertainty.</p></li>
+<li><p>Complete a Bayesian analysis, choose a prior. Derive the result, then use MCMC.</p></li>
+</ol>
+</div>
 <div id="appendix" class="section level2">
 <h2>Appendix</h2>
 <div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb1-1" data-line-number="1"><span class="co">#----------------------------------------------------------------------------</span></a>
@@ -233,9 +235,11 @@ I = - \frac{d^2 \log L(\mu)}{d \mu^2}\bigg\rvert_{\hat{\mu}}
 <a class="sourceLine" id="cb1-25" data-line-number="25"><span class="co">#----------------------------------------------------------------------------</span></a>
 <a class="sourceLine" id="cb1-26" data-line-number="26"><span class="co">## GROUP EXERCISE</span></a>
 <a class="sourceLine" id="cb1-27" data-line-number="27"></a>
-<a class="sourceLine" id="cb1-28" data-line-number="28">mu &lt;-<span class="st"> </span><span class="dv">0</span>; n &lt;-<span class="st"> </span><span class="dv">1000</span>; y &lt;-<span class="st"> </span><span class="kw">rnorm</span>(n, mu)</a>
-<a class="sourceLine" id="cb1-29" data-line-number="29">MLE &lt;-<span class="st"> </span><span class="dv">1</span><span class="op">/</span>n <span class="op">*</span><span class="st"> </span><span class="kw">sum</span>((y<span class="op">-</span>mu)<span class="op">^</span><span class="dv">2</span>)</a></code></pre></div>
-</div>
+<a class="sourceLine" id="cb1-28" data-line-number="28">MLE &lt;-<span class="st"> </span><span class="cf">function</span>(n) {</a>
+<a class="sourceLine" id="cb1-29" data-line-number="29">  mu &lt;-<span class="st"> </span><span class="dv">0</span>; </a>
+<a class="sourceLine" id="cb1-30" data-line-number="30">  y &lt;-<span class="st"> </span><span class="kw">rnorm</span>(n, mu)</a>
+<a class="sourceLine" id="cb1-31" data-line-number="31">  <span class="kw">return</span>(<span class="dv">1</span><span class="op">/</span>n <span class="op">*</span><span class="st"> </span><span class="kw">sum</span>((y<span class="op">-</span>mu)<span class="op">^</span><span class="dv">2</span>))</a>
+<a class="sourceLine" id="cb1-32" data-line-number="32">}</a></code></pre></div>
 </div>
     </section>
   </div>
