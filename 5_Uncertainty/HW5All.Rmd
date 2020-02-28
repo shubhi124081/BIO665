@@ -25,7 +25,8 @@ source('../clarkfunctions2020.R')
 
 
 ## Exercise 1 {#q1}
-Find the MLE, the likelihood profile, and the 95% CI for waiting times that are exponentially distributed:
+Find the MLE, the likelihood profile, and the 95% CI for waiting times that are 
+exponentially distributed:
 
 $$
 L(\mathbf{y}; \lambda) = \prod_{i=1}^n \lambda e^{-y_i \lambda}
@@ -38,7 +39,8 @@ $$
 ```
 
 ## Exercise 2 {#q2}
-Use Fisher Information to find the standard error of the mean of a normal sampling distribution.  Hint: you will need this:
+Use Fisher Information to find the standard error of the mean of a normal 
+sampling distribution.  Hint: you will need this:
 
 $$
 I = - \frac{d^2 \log L(\mu)}{d \mu^2}\bigg\rvert_{\hat{\mu}}
@@ -62,13 +64,17 @@ Estimate the standard error for the exponential model using Fisher Information.
 ```
 
 ## Exercise 4 {#q4}
-For the cone example, I used the likelihood $Poi(y_i | \beta x_i)$.  Combine this likelihood with the prior $gamma(\beta | a, b)$ and answer the following:
+For the cone example, I used the likelihood $Poi(y_i | \beta x_i)$.  Combine this 
+likelihood with the prior $gamma(\beta | a, b)$ and answer the following:
 
 a) What is the posterior density for $\beta$?
 
-b) For simulated data sets of $n = 5$, how do the standard errors and credible intervals for this model compare with Fisher information?  
+b) For simulated data sets of $n = 5$, how do the standard errors and credible 
+intervals for this model compare with Fisher information?  
 
-c) The form of the Bayesian standard error and the standard error from Fisher Information look different.  Can you explain why numerically they are similar? [Hint: think about sample size $n$].
+c) The form of the Bayesian standard error and the standard error from Fisher 
+Information look different.  Can you explain why numerically they are similar? 
+[Hint: think about sample size $n$].
 
 
 ```{r q4}
@@ -79,9 +85,12 @@ c) The form of the Bayesian standard error and the standard error from Fisher In
 
 ## Group exercise
 
-I want to get a feel for the uncertainty on the estimate of the variance for a Gaussian model for continuous observations $y$.  I would like to compare different methods.
+I want to get a feel for the uncertainty on the estimate of the variance for a 
+Gaussian model for continuous observations $y$.  I would like to compare 
+different methods.
 
-1.  Find the MLE for the variance.  If you have time to kill, derive the Fisher information and the SE. Compare the estimates for different sample sizes.
+1.  Find the MLE for the variance.  If you have time to kill, derive the Fisher 
+information and the SE. Compare the estimates for different sample sizes.
 
 ```{r group}
 #----------------------------------------------------------------------------
