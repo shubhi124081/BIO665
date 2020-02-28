@@ -25,25 +25,11 @@ source('../clarkfunctions2020.R')
 
 
 ## Exercise 1 {#q1}
-Using count data, I want to estimate a mean value.  Here is the Poisson likelihood:
+Find the MLE, the likelihood profile, and the 95% CI for waiting times that are exponentially distributed:
 
 $$
-L(\mathbf{y};\lambda) = \prod_i^n Poi(y_i| \lambda) =
-\prod_i^n \frac{\lambda^{y_i} e^{-\lambda}}{y_i!}  
-\propto \lambda^{\sum_i y_i} e^{-n \lambda}
+L(\mathbf{y}; \lambda) = \prod_{i=1}^n \lambda e^{-y_i \lambda}
 $$
-The log likelihood is
-
-$$
-\log L \propto  n \bar{y}\log \lambda  -n \lambda
-$$
-
-I find the MLE by differentiating and solving for $\hat{\lambda}$:
-
-$$
-\frac{\partial{\log L}}{\partial \lambda} = \frac{n \bar{y}}{\lambda} - n 
-$$
-The solution is $\hat{\lambda} = \bar{y}$. Interpret this result.
 
 ```{r q1}
 #----------------------------------------------------------------------------
@@ -95,7 +81,7 @@ c) The form of the Bayesian standard error and the standard error from Fisher In
 
 I want to get a feel for the uncertainty on the estimate of the variance for a Gaussian model for continuous observations $y$.  I would like to compare different methods.
 
-1. Find the MLE for the variance.  If you have time to kill, derive the Fisher information and the SE. Compare the estimates for different sample sizes.
+1.  Find the MLE for the variance.  If you have time to kill, derive the Fisher information and the SE. Compare the estimates for different sample sizes.
 
 ```{r group}
 #----------------------------------------------------------------------------

@@ -145,19 +145,10 @@ code span.ot { color: #007020; }
     <section id="main-content">
 <div id="q1" class="section level2">
 <h2>Exercise 1</h2>
-<p>Using count data, I want to estimate a mean value. Here is the Poisson likelihood:</p>
+<p>Find the MLE, the likelihood profile, and the 95% CI for waiting times that are exponentially distributed:</p>
 <p><span class="math display">\[
-L(\mathbf{y};\lambda) = \prod_i^n Poi(y_i| \lambda) =
-\prod_i^n \frac{\lambda^{y_i} e^{-\lambda}}{y_i!}  
-\propto \lambda^{\sum_i y_i} e^{-n \lambda}
-\]</span> The log likelihood is</p>
-<p><span class="math display">\[
-\log L \propto  n \bar{y}\log \lambda  -n \lambda
+L(\mathbf{y}; \lambda) = \prod_{i=1}^n \lambda e^{-y_i \lambda}
 \]</span></p>
-<p>I find the MLE by differentiating and solving for <span class="math inline">\(\hat{\lambda}\)</span>:</p>
-<p><span class="math display">\[
-\frac{\partial{\log L}}{\partial \lambda} = \frac{n \bar{y}}{\lambda} - n 
-\]</span> The solution is <span class="math inline">\(\hat{\lambda} = \bar{y}\)</span>. Interpret this result.</p>
 </div>
 <div id="q2" class="section level2">
 <h2>Exercise 2</h2>
@@ -200,7 +191,7 @@ I = - \frac{d^2 \log L(\mu)}{d \mu^2}\bigg\rvert_{\hat{\mu}}
 \]</span> <span class="math display">\[
 \sigma^2_{MLE} = \frac{1}{n}\left(\sum y_i-\mu\right)^2
 \]</span></p>
-<p>The MLEs we found for variance for <span class="math inline">\(n=1, 10, 1000\)</span> are, respectively, 0.0839, 0.2676, and 1.0723. As you can see, the variance comes closer and closer to the true variance, 1, as the sample size increases</p>
+<p>The MLEs we found for variance for <span class="math inline">\(n=1, 10, 1000\)</span> are, respectively, 0.0839, 0.2676, and 1.0723. As you can see, the variance comes closer and closer to the true variance, 1, as the sample size increases.</p>
 <ol start="2" style="list-style-type: decimal">
 <li><p>Generate bootstrapped estimates for the uncertainty.</p></li>
 <li><p>Complete a Bayesian analysis, choose a prior. Derive the result, then use MCMC.</p></li>
