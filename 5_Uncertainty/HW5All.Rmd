@@ -271,7 +271,7 @@ for(b in 1:nboot){
   
   bindex <- sample(y, nlo, replace = T)
   Y <- mean(bindex)
-  varVals[b,1] <- Y/nlo
+  varVals[b,1] <- sum(bindex^2)/nlo
 
 }
 
