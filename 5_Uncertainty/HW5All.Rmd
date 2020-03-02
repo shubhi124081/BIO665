@@ -276,6 +276,22 @@ for(b in 1:nboot){
 }
 
 hist(varVals[,1], main = paste0("Estimates of variance"), xlab = "Estimates")
+
+
+#sample variance 
+
+varValsSample <- matrix(0, nboot, 1)
+
+for(b in 1:nboot){
+  
+    bindex <- sample(y, nlo, replace = T)
+  Y <- mean(bindex)
+  div <- 1/(nlo - 1)
+  varValsSample[b,1] <- sum((bindex - Y)^2)*div
+}
+
+hist(varValsSample[,1], main = paste0("Estimates of sample variance"), xlab = "Estimates")
+#this does better 
 ```
 
 
