@@ -241,7 +241,7 @@ increases.
 
 MLE for variance 
 
-Let $y_i \sim N(0, \sigma^2)$ and $\E[x] = 0$
+Let $y_i \sim N(0, \sigma^2)$ and $\mathbb{E}[x] = 0$
 
 $$
 \begin{aligned}
