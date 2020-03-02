@@ -28,19 +28,64 @@ source('../clarkfunctions2020.R')
 
 ```
 
-
 ## Exercise 1 {#q1}
-Find the MLE, the likelihood profile, and the 95% CI for waiting times that are 
-exponentially distributed:
+Find the MLE, the likelihood profile, and the 95% CI for waiting times that are exponentially distributed:
 
 $$
 L(\mathbf{y}; \lambda) = \prod_{i=1}^n \lambda e^{-y_i \lambda}
 $$
 
-```{r q1}
+-------
+
+
+Log likelihood of exponential distribution is:
+
+$$
+\log L(\mathbf{y}; \lambda) =  \frac{n} {\lambda}  -n \bar{y}
+$$
+
+Solving the partial derivative of the log likelihood with respect to $\lambda$, we get the MLE of exponential distribution:
+
+$$
+\hat{\lambda} = \frac{1}{\bar{y}}
+$$
+
+The likelihood ratio is:
+
+$$
+\log R =  \log \lambda_0 + \log \bar{y}  -\bar{y} \lambda_0 + 1
+$$
+
+Here is a simulated data set and its MLE, likelihood profile and 95% CI.
+
+```{r}
+
 #----------------------------------------------------------------------------
 ## EXERCISE 1
 
+n    <- 100
+y    <- rexp(n)                                   #simulated waiting times
+ybar <- mean(y)
+ycap <- 1/ybar
+rseq <- seq(0,5,length=100)*ybar
+R <- log(rseq) + log(ybar) - ybar * rseq + 1   #normed likelihood
+
+par(mfrow=c(3,1), mar=c(4,4,1,4))
+plot(rseq,R, type = "l", xlab = "")
+abline(v=ycap,lty=2)
+D  <- -2*R                # Deviance
+plot(rseq,D,type='l', xlab='') 
+abline(v=ycap,lty=2)
+abline(h=3.84,lty=2)      # value of D at P = 0.05
+
+P <- 1 - pchisq(D,1)      #P value
+plot(rseq, P, type='l', xlab='lambda_0') 
+abline(v=ycap,lty=2)
+abline(h=.05, lty=2)
+
+#find the 95% CI:
+CI <- range(rseq[P > .05])
+abline(v=CI, lty=2, col = "blue")
 ```
 
 ## Exercise 2 {#q2}
