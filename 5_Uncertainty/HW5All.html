@@ -205,26 +205,26 @@ L(\mathbf{y};\lambda)
 = \prod_{i=1}^n \lambda e^{-\lambda y_i} = \lambda^ne^{-\lambda\sum y_i}
 \]</span> Next, we take the log of the likelihood, and find the second derivative w.r.t. <span class="math inline">\(\lambda\)</span>. <span class="math display">\[
 \log L(\mathbf{y};\lambda) 
- = n\log\lambda -\lambda\sum y_i
+ = n\log\lambda - n\lambda\bar{y}
 \]</span> We take the first derivative, and stop to find the MLE for <span class="math inline">\(\lambda\)</span>: <span class="math display">\[
 \frac{d}{d\lambda}\left[\log L(\mathbf{y};\lambda) \right]
- = \frac{n}{\lambda} - \sum y_i
+ = \frac{n}{\lambda} - n\bar{y}
 \implies
-\hat{\lambda} = \frac{n}{\sum y_i}
+\hat{\lambda} = \frac{1}{\bar{y}}
 \]</span> And continue to find the second derivative for Fisher’s: <span class="math display">\[
 \frac{d^2}{d\mu^2}\left[\log L(\mathbf{y};\lambda) \right]
  = -\frac{n}{\lambda^2}
 \]</span> <span class="math display">\[
 I = \frac{n}{\lambda^2}\bigg\rvert_{\hat{\lambda}} 
-= \frac{n}{\left(n/\sum y_i\right)^2}
-= \frac{\left(\sum y_i\right)^2}{n}
+= \frac{n}{\left(1/\bar{y}\right)^2}
+= n\bar{y}^2
 \]</span></p>
 <p>Now that we have the Fisher’s Information, we can use it to estimate the standard error: <span class="math display">\[
 se_{\hat{\lambda}} 
 = \frac{1}{\sqrt{I}} 
-=\sqrt{\frac{n}{\left(\sum y_i\right)^2}} = \frac{\sqrt{n}}{\sum y_i}
+=\sqrt{\frac{1}{n\bar{y}^2}}
 \]</span></p>
-<p>The standard error will still decrease as our sample size increases to <span class="math inline">\(\infty\)</span>, because we have a sum of our <span class="math inline">\(y_i\)</span> on the bottom, leading to an <span class="math inline">\(O(\sqrt{n} / n )\)</span> behavior, which is stronger in the denominator for <span class="math inline">\(y_i &gt; 1\)</span>.</p>
+<p>The standard error will still decrease as our sample size increases to <span class="math inline">\(\infty\)</span>, for <span class="math inline">\(y_i&gt;1\)</span>.</p>
 </div>
 <div id="q4" class="section level2">
 <h2>Exercise 4</h2>

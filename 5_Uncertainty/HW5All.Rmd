@@ -139,14 +139,14 @@ $$
 Next, we take the log of the likelihood, and find the second derivative w.r.t. $\lambda$.
 $$
 \log L(\mathbf{y};\lambda) 
- = n\log\lambda -\lambda\sum y_i
+ = n\log\lambda - n\lambda\bar{y}
 $$
 We take the first derivative, and stop to find the MLE for $\lambda$:
 $$
 \frac{d}{d\lambda}\left[\log L(\mathbf{y};\lambda) \right]
- = \frac{n}{\lambda} - \sum y_i
+ = \frac{n}{\lambda} - n\bar{y}
 \implies
-\hat{\lambda} = \frac{n}{\sum y_i}
+\hat{\lambda} = \frac{1}{\bar{y}}
 $$
 And continue to find the second derivative for Fisher's:
 $$
@@ -155,20 +155,19 @@ $$
 $$
 $$
 I = \frac{n}{\lambda^2}\bigg\rvert_{\hat{\lambda}} 
-= \frac{n}{\left(n/\sum y_i\right)^2}
-= \frac{\left(\sum y_i\right)^2}{n}
+= \frac{n}{\left(1/\bar{y}\right)^2}
+= n\bar{y}^2
 $$
 
 Now that we have the Fisher's Information, we can use it to estimate the standard error:
 $$
 se_{\hat{\lambda}} 
 = \frac{1}{\sqrt{I}} 
-=\sqrt{\frac{n}{\left(\sum y_i\right)^2}} = \frac{\sqrt{n}}{\sum y_i}
+=\sqrt{\frac{1}{n\bar{y}^2}}
 $$
 
 The standard error will still decrease as our sample size increases to $\infty$, 
-because we have a sum of our $y_i$ on the bottom, leading to an $O(\sqrt{n} / n )$
-behavior, which is stronger in the denominator for $y_i > 1$.
+for $y_i>1$.
 
 
 ## Exercise 4 {#q4}
