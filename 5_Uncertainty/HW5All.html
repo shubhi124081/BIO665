@@ -152,10 +152,29 @@ L(\mathbf{y}; \lambda) = \prod_{i=1}^n \lambda e^{-y_i \lambda}
 </div>
 <div id="q2" class="section level2">
 <h2>Exercise 2</h2>
-<p>Use Fisher Information to find the standard error of the mean of a normal sampling distribution. Hint: you will need this:</p>
-<p><span class="math display">\[
-I = - \frac{d^2 \log L(\mu)}{d \mu^2}\bigg\rvert_{\hat{\mu}}
+<p>Use Fisher Information to find the standard error of the mean of a normal sampling distribution.</p>
+<p><span class="math inline">\(Solution:\)</span> First, we find the likelihood function and only take the proportional pieces with respect to <span class="math inline">\(\mu\)</span>: <span class="math display">\[
+L(\mathbf{y};\mu, \sigma^2) 
+= \prod_{i=1}^n \frac{1}{\sqrt{2\pi\sigma^2}} \exp\left\{-\frac12 \frac{(y_i-\mu)^2}{\sigma^2}\right\}
+\propto\exp\left\{-\frac12 \frac{\sum (y_i-\mu)^2}{\sigma^2}\right\}
+\]</span> Next, we take the log of the likelihood, and find the second derivative with respect to <span class="math inline">\(\mu\)</span>. <span class="math display">\[
+\log L(\mathbf{y};\mu, \sigma^2) = 
+-\frac{1}{2\sigma^2} \sum y_i^2-2y_i\mu + \mu^2
 \]</span></p>
+<p><span class="math display">\[
+\frac{d}{d\mu}\left[\log L(\mathbf{y};\mu, \sigma^2)\right] = 
+\sum \frac{y_i}{\sigma^2} - \frac{\mu}{\sigma^2}
+\]</span></p>
+<p><span class="math display">\[
+\frac{d^2}{d\mu^2}\left[\log L(\mathbf{y};\mu, \sigma^2)\right] = 
+- \frac{n}{\sigma^2}
+\]</span> <span class="math display">\[
+I = \frac{n}{\sigma^2}\bigg\rvert_{\hat{\mu}} = \frac{n}{\sigma^2}
+\]</span></p>
+<p>Now that we have the Fisher’s Information, we can use it to estimate the standard error of the mean: <span class="math display">\[
+se_{\hat{\mu}} = \frac{1}{\sqrt{I}} = \frac{\sigma}{\sqrt n}
+\]</span></p>
+<p>The standard error of the mean will decrease with our sample size <span class="math inline">\(n\)</span> as <span class="math inline">\(n\to\infty\)</span>.</p>
 </div>
 <div id="q3" class="section level2">
 <h2>Exercise 3</h2>
@@ -216,21 +235,22 @@ I = - \frac{d^2 \log L(\mu)}{d \mu^2}\bigg\rvert_{\hat{\mu}}
 <a class="sourceLine" id="cb1-15" data-line-number="15"></a>
 <a class="sourceLine" id="cb1-16" data-line-number="16"><span class="co">#----------------------------------------------------------------------------</span></a>
 <a class="sourceLine" id="cb1-17" data-line-number="17"><span class="co">## EXERCISE 2</span></a>
-<a class="sourceLine" id="cb1-18" data-line-number="18"></a>
-<a class="sourceLine" id="cb1-19" data-line-number="19"><span class="co">#----------------------------------------------------------------------------</span></a>
-<a class="sourceLine" id="cb1-20" data-line-number="20"><span class="co">## EXERCISE 3</span></a>
-<a class="sourceLine" id="cb1-21" data-line-number="21"></a>
-<a class="sourceLine" id="cb1-22" data-line-number="22"><span class="co">#----------------------------------------------------------------------------</span></a>
-<a class="sourceLine" id="cb1-23" data-line-number="23"><span class="co">## EXERCISE 4</span></a>
-<a class="sourceLine" id="cb1-24" data-line-number="24"></a>
-<a class="sourceLine" id="cb1-25" data-line-number="25"><span class="co">#----------------------------------------------------------------------------</span></a>
-<a class="sourceLine" id="cb1-26" data-line-number="26"><span class="co">## GROUP EXERCISE</span></a>
-<a class="sourceLine" id="cb1-27" data-line-number="27"></a>
-<a class="sourceLine" id="cb1-28" data-line-number="28">MLE &lt;-<span class="st"> </span><span class="cf">function</span>(n) {</a>
-<a class="sourceLine" id="cb1-29" data-line-number="29">  mu &lt;-<span class="st"> </span><span class="dv">0</span>; </a>
-<a class="sourceLine" id="cb1-30" data-line-number="30">  y &lt;-<span class="st"> </span><span class="kw">rnorm</span>(n, mu)</a>
-<a class="sourceLine" id="cb1-31" data-line-number="31">  <span class="kw">return</span>(<span class="dv">1</span><span class="op">/</span>n <span class="op">*</span><span class="st"> </span><span class="kw">sum</span>((y<span class="op">-</span>mu)<span class="op">^</span><span class="dv">2</span>))</a>
-<a class="sourceLine" id="cb1-32" data-line-number="32">}</a></code></pre></div>
+<a class="sourceLine" id="cb1-18" data-line-number="18">mu &lt;-<span class="st"> </span><span class="dv">0</span>; sd &lt;-<span class="st"> </span><span class="dv">1</span></a>
+<a class="sourceLine" id="cb1-19" data-line-number="19"></a>
+<a class="sourceLine" id="cb1-20" data-line-number="20"><span class="co">#----------------------------------------------------------------------------</span></a>
+<a class="sourceLine" id="cb1-21" data-line-number="21"><span class="co">## EXERCISE 3</span></a>
+<a class="sourceLine" id="cb1-22" data-line-number="22"></a>
+<a class="sourceLine" id="cb1-23" data-line-number="23"><span class="co">#----------------------------------------------------------------------------</span></a>
+<a class="sourceLine" id="cb1-24" data-line-number="24"><span class="co">## EXERCISE 4</span></a>
+<a class="sourceLine" id="cb1-25" data-line-number="25"></a>
+<a class="sourceLine" id="cb1-26" data-line-number="26"><span class="co">#----------------------------------------------------------------------------</span></a>
+<a class="sourceLine" id="cb1-27" data-line-number="27"><span class="co">## GROUP EXERCISE</span></a>
+<a class="sourceLine" id="cb1-28" data-line-number="28"></a>
+<a class="sourceLine" id="cb1-29" data-line-number="29">MLE &lt;-<span class="st"> </span><span class="cf">function</span>(n) {</a>
+<a class="sourceLine" id="cb1-30" data-line-number="30">  mu &lt;-<span class="st"> </span><span class="dv">0</span>; </a>
+<a class="sourceLine" id="cb1-31" data-line-number="31">  y &lt;-<span class="st"> </span><span class="kw">rnorm</span>(n, mu)</a>
+<a class="sourceLine" id="cb1-32" data-line-number="32">  <span class="kw">return</span>(<span class="dv">1</span><span class="op">/</span>n <span class="op">*</span><span class="st"> </span><span class="kw">sum</span>((y<span class="op">-</span>mu)<span class="op">^</span><span class="dv">2</span>))</a>
+<a class="sourceLine" id="cb1-33" data-line-number="33">}</a></code></pre></div>
 </div>
     </section>
   </div>

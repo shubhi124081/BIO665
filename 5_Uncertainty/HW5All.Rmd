@@ -40,28 +40,76 @@ $$
 
 ## Exercise 2 {#q2}
 Use Fisher Information to find the standard error of the mean of a normal 
-sampling distribution.  Hint: you will need this:
+sampling distribution.  
+
+$Solution:$ First, we find the likelihood function and only take the proportional
+ pieces with respect to $\mu$:
+$$
+L(\mathbf{y};\mu, \sigma^2) 
+= \prod_{i=1}^n \frac{1}{\sqrt{2\pi\sigma^2}} \exp\left\{-\frac12 \frac{(y_i-\mu)^2}{\sigma^2}\right\}
+\propto\exp\left\{-\frac12 \frac{\sum (y_i-\mu)^2}{\sigma^2}\right\}
+$$
+Next, we take the log of the likelihood, and find the second derivative with respect to $\mu$.
+$$
+\log L(\mathbf{y};\mu, \sigma^2) = 
+-\frac{1}{2\sigma^2} \sum y_i^2-2y_i\mu + \mu^2
+$$
 
 $$
-I = - \frac{d^2 \log L(\mu)}{d \mu^2}\bigg\rvert_{\hat{\mu}}
+\frac{d}{d\mu}\left[\log L(\mathbf{y};\mu, \sigma^2)\right] = 
+\sum \frac{y_i}{\sigma^2} - \frac{\mu}{\sigma^2}
 $$
 
+$$
+\frac{d^2}{d\mu^2}\left[\log L(\mathbf{y};\mu, \sigma^2)\right] = 
+- \frac{n}{\sigma^2}
+$$
+$$
+I = \frac{n}{\sigma^2}\bigg\rvert_{\hat{\mu}} = \frac{n}{\sigma^2}
+$$
 
-```{r q2}
-#----------------------------------------------------------------------------
-## EXERCISE 2
+Now that we have the Fisher's Information, we can use it to estimate the standard error of the mean:
+$$
+se_{\hat{\mu}} = \frac{1}{\sqrt{I}} = \frac{\sigma}{\sqrt n}
+$$
 
-```
+The standard error of the mean will decrease with our sample size $n$ as $n\to\infty$.
 
 ## Exercise 3 {#q3}
 Estimate the standard error for the exponential model using Fisher Information.  
 
+$Solution:$ First, we find the likelihood function and only take the proportional
+ pieces with respect to $\mu$:
+$$
+L(\mathbf{y};\mu, \sigma^2) 
+= \prod_{i=1}^n \frac{1}{\sqrt{2\pi\sigma^2}} \exp\left\{-\frac12 \frac{(y_i-\mu)^2}{\sigma^2}\right\}
+\propto\exp\left\{-\frac12 \frac{\sum (y_i-\mu)^2}{\sigma^2}\right\}
+$$
+Next, we take the log of the likelihood, and find the second derivative with respect to $\mu$.
+$$
+\log L(\mathbf{y};\mu, \sigma^2) = 
+-\frac{1}{2\sigma^2} \sum y_i^2-2y_i\mu + \mu^2
+$$
 
-```{r q3}
-#----------------------------------------------------------------------------
-## EXERCISE 3
+$$
+\frac{d}{d\mu}\left[\log L(\mathbf{y};\mu, \sigma^2)\right] = 
+\sum \frac{y_i}{\sigma^2} - \frac{\mu}{\sigma^2}
+$$
 
-```
+$$
+\frac{d^2}{d\mu^2}\left[\log L(\mathbf{y};\mu, \sigma^2)\right] = 
+- \frac{n}{\sigma^2}
+$$
+$$
+I = \frac{n}{\sigma^2}\bigg\rvert_{\hat{\mu}} = \frac{n}{\sigma^2}
+$$
+
+Now that we have the Fisher's Information, we can use it to estimate the standard error of the mean:
+$$
+se_{\hat{\mu}} = \frac{1}{\sqrt{I}} = \frac{\sigma}{\sqrt n}
+$$
+
+The standard error of the mean will decrease with our sample size $n$ as $n\to\infty$.
 
 ## Exercise 4 {#q4}
 For the cone example, I used the likelihood $Poi(y_i | \beta x_i)$.  Combine this 
