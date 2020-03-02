@@ -168,7 +168,8 @@ L(\mathbf{y};\mu, \sigma^2)
 <p><span class="math display">\[
 \frac{d^2}{d\mu^2}\left[\log L(\mathbf{y};\mu, \sigma^2)\right] = 
 - \frac{n}{\sigma^2}
-\]</span> <span class="math display">\[
+\]</span></p>
+<p><span class="math display">\[
 I = \frac{n}{\sigma^2}\bigg\rvert_{\hat{\mu}} = \frac{n}{\sigma^2}
 \]</span></p>
 <p>Now that we have the Fisher’s Information, we can use it to estimate the standard error of the mean: <span class="math display">\[
@@ -179,6 +180,35 @@ se_{\hat{\mu}} = \frac{1}{\sqrt{I}} = \frac{\sigma}{\sqrt n}
 <div id="q3" class="section level2">
 <h2>Exercise 3</h2>
 <p>Estimate the standard error for the exponential model using Fisher Information.</p>
+<p><span class="math inline">\(Solution:\)</span> First, we find the likelihood function and only take the proportional pieces with respect to <span class="math inline">\(\mu\)</span>:</p>
+<p><span class="math display">\[
+L(\mathbf{y};\lambda) 
+= \prod_{i=1}^n \lambda e^{-\lambda y_i} = \lambda^ne^{-\lambda\sum y_i}
+\]</span> Next, we take the log of the likelihood, and find the second derivative with respect to <span class="math inline">\(\mu\)</span>. <span class="math display">\[
+\log L(\mathbf{y};\lambda) 
+ = n\log\lambda -\lambda\sum y_i
+\]</span></p>
+<p><span class="math display">\[
+\frac{d}{d\lambda}\left[\log L(\mathbf{y};\lambda) \right]
+ = \frac{n}{\lambda} - \sum y_i
+\]</span> Here, we can stop and find the MLE for <span class="math inline">\(\lambda\)</span>:</p>
+<p><span class="math display">\[
+\hat{\lambda} = \frac{n}{\sum y_i}
+\]</span></p>
+<p><span class="math display">\[
+\frac{d^2}{d\mu^2}\left[\log L(\mathbf{y};\lambda) \right]
+ = -\frac{n}{\lambda^2}
+\]</span> <span class="math display">\[
+I = \frac{n}{\lambda^2}\bigg\rvert_{\hat{\lambda}} 
+= \frac{n}{\left(n/\sum y_i\right)^2}
+= \frac{\left(\sum y_i\right)^2}{n}
+\]</span></p>
+<p>Now that we have the Fisher’s Information, we can use it to estimate the standard error: <span class="math display">\[
+se_{\hat{\lambda}} 
+= \frac{1}{\sqrt{I}} 
+=\sqrt{\frac{n}{\left(\sum y_i\right)^2}} = \frac{\sqrt{n}}{\sum y_i}
+\]</span></p>
+<p>The standard error will <span class="math inline">\(increase\)</span> with our sample size <span class="math inline">\(n\)</span> as <span class="math inline">\(n\to\infty\)</span>.</p>
 </div>
 <div id="q4" class="section level2">
 <h2>Exercise 4</h2>
@@ -234,23 +264,16 @@ se_{\hat{\mu}} = \frac{1}{\sqrt{I}} = \frac{\sigma}{\sqrt n}
 <a class="sourceLine" id="cb1-14" data-line-number="14"><span class="co">## EXERCISE 1</span></a>
 <a class="sourceLine" id="cb1-15" data-line-number="15"></a>
 <a class="sourceLine" id="cb1-16" data-line-number="16"><span class="co">#----------------------------------------------------------------------------</span></a>
-<a class="sourceLine" id="cb1-17" data-line-number="17"><span class="co">## EXERCISE 2</span></a>
-<a class="sourceLine" id="cb1-18" data-line-number="18">mu &lt;-<span class="st"> </span><span class="dv">0</span>; sd &lt;-<span class="st"> </span><span class="dv">1</span></a>
-<a class="sourceLine" id="cb1-19" data-line-number="19"></a>
-<a class="sourceLine" id="cb1-20" data-line-number="20"><span class="co">#----------------------------------------------------------------------------</span></a>
-<a class="sourceLine" id="cb1-21" data-line-number="21"><span class="co">## EXERCISE 3</span></a>
-<a class="sourceLine" id="cb1-22" data-line-number="22"></a>
-<a class="sourceLine" id="cb1-23" data-line-number="23"><span class="co">#----------------------------------------------------------------------------</span></a>
-<a class="sourceLine" id="cb1-24" data-line-number="24"><span class="co">## EXERCISE 4</span></a>
-<a class="sourceLine" id="cb1-25" data-line-number="25"></a>
-<a class="sourceLine" id="cb1-26" data-line-number="26"><span class="co">#----------------------------------------------------------------------------</span></a>
-<a class="sourceLine" id="cb1-27" data-line-number="27"><span class="co">## GROUP EXERCISE</span></a>
-<a class="sourceLine" id="cb1-28" data-line-number="28"></a>
-<a class="sourceLine" id="cb1-29" data-line-number="29">MLE &lt;-<span class="st"> </span><span class="cf">function</span>(n) {</a>
-<a class="sourceLine" id="cb1-30" data-line-number="30">  mu &lt;-<span class="st"> </span><span class="dv">0</span>; </a>
-<a class="sourceLine" id="cb1-31" data-line-number="31">  y &lt;-<span class="st"> </span><span class="kw">rnorm</span>(n, mu)</a>
-<a class="sourceLine" id="cb1-32" data-line-number="32">  <span class="kw">return</span>(<span class="dv">1</span><span class="op">/</span>n <span class="op">*</span><span class="st"> </span><span class="kw">sum</span>((y<span class="op">-</span>mu)<span class="op">^</span><span class="dv">2</span>))</a>
-<a class="sourceLine" id="cb1-33" data-line-number="33">}</a></code></pre></div>
+<a class="sourceLine" id="cb1-17" data-line-number="17"><span class="co">## EXERCISE 4</span></a>
+<a class="sourceLine" id="cb1-18" data-line-number="18"></a>
+<a class="sourceLine" id="cb1-19" data-line-number="19"><span class="co">#----------------------------------------------------------------------------</span></a>
+<a class="sourceLine" id="cb1-20" data-line-number="20"><span class="co">## GROUP EXERCISE</span></a>
+<a class="sourceLine" id="cb1-21" data-line-number="21"></a>
+<a class="sourceLine" id="cb1-22" data-line-number="22">MLE &lt;-<span class="st"> </span><span class="cf">function</span>(n) {</a>
+<a class="sourceLine" id="cb1-23" data-line-number="23">  mu &lt;-<span class="st"> </span><span class="dv">0</span>; </a>
+<a class="sourceLine" id="cb1-24" data-line-number="24">  y &lt;-<span class="st"> </span><span class="kw">rnorm</span>(n, mu)</a>
+<a class="sourceLine" id="cb1-25" data-line-number="25">  <span class="kw">return</span>(<span class="dv">1</span><span class="op">/</span>n <span class="op">*</span><span class="st"> </span><span class="kw">sum</span>((y<span class="op">-</span>mu)<span class="op">^</span><span class="dv">2</span>))</a>
+<a class="sourceLine" id="cb1-26" data-line-number="26">}</a></code></pre></div>
 </div>
     </section>
   </div>
