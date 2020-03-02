@@ -6,6 +6,11 @@ output:
   prettydoc::html_pretty:
     theme: architect
     highlight: github
+header-includes: 
+- \usepackage{placeins}
+- \usepackage{color}
+- \usepackage{amsmath, amssymb}
+- \DeclareMathOperator{\E}{\mathbb{E}}
 ---
 
 ```{r setup, include=F}
