@@ -101,7 +101,7 @@ Here, we can stop and find the MLE for $\lambda$:
 $$
 \hat{\lambda} = \frac{n}{\sum y_i}
 $$
-
+And continue to find the second derivative for Fisher's:
 $$
 \frac{d^2}{d\mu^2}\left[\log L(\mathbf{y};\lambda) \right]
  = -\frac{n}{\lambda^2}
@@ -119,7 +119,10 @@ se_{\hat{\lambda}}
 =\sqrt{\frac{n}{\left(\sum y_i\right)^2}} = \frac{\sqrt{n}}{\sum y_i}
 $$
 
-The standard error will $increase$ with our sample size $n$ as $n\to\infty$.
+The standard error will still decrease as our sample size increases to $\infty$, 
+because we have a sum of our $y_i$ on the bottom, leading to an $O(\sqrt{n} / n )$
+behavior, which is stronger in the denominator.
+
 
 ## Exercise 4 {#q4}
 For the cone example, I used the likelihood $Poi(y_i | \beta x_i)$.  Combine this 
