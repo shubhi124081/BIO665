@@ -190,10 +190,83 @@ The MLEs we found for variance for $n=1, 10, 1000$ are, respectively,
 see, the variance comes closer and closer to the true variance, 1, as the sample size 
 increases.
 
-2. Generate bootstrapped estimates for the uncertainty.
 
-3. Complete a Bayesian analysis, choose a prior. Derive the result, then use MCMC.
+## Group exercise 
 
+MLE for variance 
+
+Let $y_i \sim N(0, \sigma^2)$ and $\E[x] = 0$
+
+$$
+\begin{aligned}
+p(Y) &= \left( \frac{1}{2\pi \sigma^2} \right)^{-n/2} e\left(\frac{-1}{2\sigma^2}\sum_i(y_i)^2 \right)\\
+\text{Let } \sigma^2 &= \theta\\
+\log L(\theta \mid Y) &= \frac{-n}{2}\left(\log \theta + \frac{1}{\theta} \frac{\sum y_i^2}{n}\right)\\
+\frac{\partial}{\partial \theta}&= \frac{-n}{2}\left( \theta - \frac{1}{\theta^2} \frac{\sum y_i^2}{n}\right)\\
+\text{Setting first } & \text{derivarite to 0, }\\
+0 &= \frac{-n}{2}\left( \theta - \frac{1}{\theta^2} \frac{\sum y_i^2}{n}\right)\\
+\hat{\theta} &= \frac{\sum y_i^2}{n}
+\end{aligned}
+$$
+
+
+Bootstrap to get MLE estimate for variance 
+
+```{r}
+set.seed(123)
+y <- rnorm(20, 0, 1)
+Y <- mean(y)
+nlo <- length(y)
+
+nboot <- 2000
+varVals <- matrix(0, nboot, 1)
+
+for(b in 1:nboot){
+  
+  bindex <- sample(y, nlo, replace = T)
+  Y <- mean(bindex)
+  varVals[b,1] <- Y/nlo
+
+}
+
+hist(varVals[,1], main = paste0("Estimates of variance"), xlab = "Estimates")
+```
+
+
+
+Bayesian version 
+Writing the variance as precision
+$$
+\begin{aligned}
+p(y \mid \theta ) &=  \left( \frac{\theta}{2\pi} \right)^{-n/2} e\left(\frac{-\theta}{2}\sum_i(y_i)^2 \right)\\
+p(\theta) &\propto \theta^{\alpha -1} e^{-\theta \beta}\\
+p(\theta \mid y) &\propto \theta^{\alpha + n/2 - 1} e^{\beta + 0.5 \sum_i (y_i)^2}\\
+&\sim Ga(a + n/2, \beta + 0.5 \sum_i(y_i)^2)\\
+&\sim Ga(a_n, b_n)\\
+\end{aligned}
+$$
+
+Sample from the posterior 
+
+```{r}
+
+set.seed(123)
+y <- rnorm(20, 0, 1)
+n <- length(y)
+#hyperparameters 
+a <- b <- 0.01
+
+#posterior parameters 
+an <- a + n/2
+bn <- b + 0.5*sum(y)^2
+
+nsamp <- 2000
+varValsBayes <- matrix(0, nsamp,1 )
+
+varValsBayes[, 1] <- rgamma(nsamp, an, bn) 
+
+hist(varValsBayes[,1])
+```
 
 
 ## Appendix {#appendix}
