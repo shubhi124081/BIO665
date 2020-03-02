@@ -180,19 +180,17 @@ se_{\hat{\mu}} = \frac{1}{\sqrt{I}} = \frac{\sigma}{\sqrt n}
 <div id="q3" class="section level2">
 <h2>Exercise 3</h2>
 <p>Estimate the standard error for the exponential model using Fisher Information.</p>
-<p><span class="math inline">\(Solution:\)</span> First, we find the likelihood function and only take the proportional pieces with respect to <span class="math inline">\(\mu\)</span>:</p>
+<p><span class="math inline">\(Solution:\)</span> First, we find the likelihood function and only take the proportional pieces w.r.t. <span class="math inline">\(\lambda\)</span>:</p>
 <p><span class="math display">\[
 L(\mathbf{y};\lambda) 
 = \prod_{i=1}^n \lambda e^{-\lambda y_i} = \lambda^ne^{-\lambda\sum y_i}
-\]</span> Next, we take the log of the likelihood, and find the second derivative with respect to <span class="math inline">\(\mu\)</span>. <span class="math display">\[
+\]</span> Next, we take the log of the likelihood, and find the second derivative w.r.t. <span class="math inline">\(\lambda\)</span>. <span class="math display">\[
 \log L(\mathbf{y};\lambda) 
  = n\log\lambda -\lambda\sum y_i
-\]</span></p>
-<p><span class="math display">\[
+\]</span> We take the first derivative, and stop to find the MLE for <span class="math inline">\(\lambda\)</span>: <span class="math display">\[
 \frac{d}{d\lambda}\left[\log L(\mathbf{y};\lambda) \right]
  = \frac{n}{\lambda} - \sum y_i
-\]</span> Here, we can stop and find the MLE for <span class="math inline">\(\lambda\)</span>:</p>
-<p><span class="math display">\[
+\implies
 \hat{\lambda} = \frac{n}{\sum y_i}
 \]</span> And continue to find the second derivative for Fisher’s: <span class="math display">\[
 \frac{d^2}{d\mu^2}\left[\log L(\mathbf{y};\lambda) \right]
@@ -207,7 +205,7 @@ se_{\hat{\lambda}}
 = \frac{1}{\sqrt{I}} 
 =\sqrt{\frac{n}{\left(\sum y_i\right)^2}} = \frac{\sqrt{n}}{\sum y_i}
 \]</span></p>
-<p>The standard error will <span class="math inline">\(increase\)</span> with our sample size <span class="math inline">\(n\)</span> as <span class="math inline">\(n\to\infty\)</span>.</p>
+<p>The standard error will still decrease as our sample size increases to <span class="math inline">\(\infty\)</span>, because we have a sum of our <span class="math inline">\(y_i\)</span> on the bottom, leading to an <span class="math inline">\(O(\sqrt{n} / n )\)</span> behavior, which is stronger in the denominator for <span class="math inline">\(y_i &gt; 1\)</span>.</p>
 </div>
 <div id="q4" class="section level2">
 <h2>Exercise 4</h2>

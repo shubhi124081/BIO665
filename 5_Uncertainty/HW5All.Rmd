@@ -80,25 +80,22 @@ The standard error of the mean will decrease with our sample size $n$ as $n\to\i
 Estimate the standard error for the exponential model using Fisher Information.  
 
 $Solution:$ First, we find the likelihood function and only take the proportional
- pieces with respect to $\mu$:
+ pieces w.r.t. $\lambda$:
 
 $$
 L(\mathbf{y};\lambda) 
 = \prod_{i=1}^n \lambda e^{-\lambda y_i} = \lambda^ne^{-\lambda\sum y_i}
 $$
-Next, we take the log of the likelihood, and find the second derivative with respect to $\mu$.
+Next, we take the log of the likelihood, and find the second derivative w.r.t. $\lambda$.
 $$
 \log L(\mathbf{y};\lambda) 
  = n\log\lambda -\lambda\sum y_i
 $$
-
+We take the first derivative, and stop to find the MLE for $\lambda$:
 $$
 \frac{d}{d\lambda}\left[\log L(\mathbf{y};\lambda) \right]
  = \frac{n}{\lambda} - \sum y_i
-$$
-Here, we can stop and find the MLE for $\lambda$:
-
-$$
+\implies
 \hat{\lambda} = \frac{n}{\sum y_i}
 $$
 And continue to find the second derivative for Fisher's:
@@ -121,7 +118,7 @@ $$
 
 The standard error will still decrease as our sample size increases to $\infty$, 
 because we have a sum of our $y_i$ on the bottom, leading to an $O(\sqrt{n} / n )$
-behavior, which is stronger in the denominator.
+behavior, which is stronger in the denominator for $y_i > 1$.
 
 
 ## Exercise 4 {#q4}
