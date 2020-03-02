@@ -171,24 +171,48 @@ for $y_i>1$.
 
 
 ## Exercise 4 {#q4}
-For the cone example, I used the likelihood $Poi(y_i | \beta x_i)$.  Combine this 
-likelihood with the prior $gamma(\beta | a, b)$ and answer the following:
-
-a) What is the posterior density for $\beta$?
-
-b) For simulated data sets of $n = 5$, how do the standard errors and credible 
-intervals for this model compare with Fisher information?  
-
-c) The form of the Bayesian standard error and the standard error from Fisher 
-Information look different.  Can you explain why numerically they are similar? 
-[Hint: think about sample size $n$].
-
+For the cone example, I used the likelihood $Poi(y_i | \beta x_i)$.  Combine this likelihood with the prior $gamma(\beta | a, b)$ and answer the following:
 
 ```{r q4}
 #----------------------------------------------------------------------------
 ## EXERCISE 4
+# (b)
+n    <- 5
+y    <- rpois(n,4.7)                                   #simulated cone counts
+ybar <- mean(y)
+rseq <- seq(.3,1.6,length=100)*ybar
+x <- runif(n,0,30)
+a <- b <- 1
+plot(rseq,dgamma(rseq, a, b), type='l', lty=2, ylim=c(0,.6),
+     xlab = 'lambda', ylab = 'density')
+
+A <- sum(y) + a - 1
+B <- n*(mean(x)^2) + b
+
+lines(rseq,dgamma(rseq, A, B), type='l')
+ci <- qgamma(c(.025,.975), A, B) 
+segments(ci[1], 0, ci[1], dgamma(ci[1],A,B))
+segments(ci[2], 0, ci[2], dgamma(ci[2],A,B))
+
+selamb <- sqrt(A/(B^2))
+# fisher information
+Ise <- sqrt(A/(n*(B^2)))
 
 ```
+
+a) What is the posterior density for $\beta$?
+
+The posterior distribution for $\beta$ is a new gamma distribution: $gamma(\beta|n\bar{y} + a -1, n\bar{x^2} + b)$
+
+b) For simulated data sets of $n = 5$, how do the standard errors and credible intervals for this model compare with Fisher information?  
+
+The standard errors for the posterior distribution for beta in the cone example, the standard error and credible intervals are `r round(selamb,2)` and `r round(ci,2)`.
+
+
+c) The form of the Bayesian standard error and the standard error from Fisher Information look different.  Can you explain why numerically they are similar? [Hint: think about sample size $n$].
+
+
+The fisher information for beta is $\sqrt{\frac{n\bar{y} +a -1}{n(n\bar{x} + b)^2}} $. se for the Bayesian standard error is $\sqrt{\frac{{n\bar{y} +a -1}}{(n\bar{x} + b)^2}} $. Both fisher inforation and the se decrease with increasing sample size. 
 
 ## Group exercise
 
