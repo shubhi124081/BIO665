@@ -41,7 +41,7 @@ $$
 Log likelihood of exponential distribution is:
 
 $$
-\log L(\mathbf{y}; \lambda) =  \frac{n} {\lambda}  -n \bar{y}
+\log L(\mathbf{y}; \lambda) =  n\log\lambda - n\lambda\bar{y}
 $$
 
 Solving the partial derivative of the log likelihood with respect to $\lambda$, we get the MLE of exponential distribution:
