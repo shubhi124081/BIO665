@@ -63,7 +63,7 @@ Here is a simulated data set and its MLE, likelihood profile and 95% CI.
 #----------------------------------------------------------------------------
 ## EXERCISE 1
 
-n    <- 100
+n    <- 1000
 y    <- rexp(n)                                   #simulated waiting times
 ybar <- mean(y)
 ycap <- 1/ybar
