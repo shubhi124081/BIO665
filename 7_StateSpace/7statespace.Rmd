@@ -1,0 +1,684 @@
+---
+title: "time series"
+author: '[Jim Clark](http://sites.nicholas.duke.edu/clarklab/)'
+date: '`r Sys.Date()`'
+output:
+  html_document:
+    fig_caption: yes
+    highlight: kate
+    theme: sandstone
+    toc: yes
+    toc_depth: 3
+  pdf_document:
+    toc: yes
+    toc_depth: '3'
+subtitle: env/bio 665 Bayesian inference for environmental models
+fontsize: 12pt
+---
+
+```{r colfmt, echo=F}
+ebreak <- "--------------------------- ===== ---------------------------"
+makeSpace <- function(){
+  outputFormat = knitr::opts_knit$get("rmarkdown.pandoc.to")
+  if(outputFormat == 'latex')
+    "\\bigskip"
+  else if(outputFormat == 'html')
+    "<br>"
+  else
+    "<br>"
+}
+colFmt = function(x,color){
+  outputFormat = knitr::opts_knit$get("rmarkdown.pandoc.to")
+  if(outputFormat == 'latex')
+    paste("\\textcolor{",color,"}{",x,"}",sep="")
+  else if(outputFormat == 'html')
+    paste("<font color='",color,"'>",x,"</font>",sep="")
+  else
+    x
+}
+```
+
+
+`r makeSpace()`
+  
+#resources
+
+## data file
+
+`combinedLevelChem2007.csv`
+
+## software
+
+*  Rstudio
+```{r clarkFunctions, message=FALSE, cache=FALSE}
+source('../clarkFunctions2020.r')
+```
+
+
+## readings
+
+*Models for Ecological Data*, chapter 9, 10.
+
+#objectives
+
+* understand what makes a state-space model hierarchical, and why it can be important for time-series data--think conditional independence
+
+* understand how the relative magnitudes of process and observation error affect estimates and predictions and why prior distributions should be informative
+
+* understand differences in scale of multivariate time series and how to accommodate it.
+
+
+
+`r makeSpace()`
+
+#state-space models for time series
+
+There have been many efforts to handle the combination of process and observation error in time series.  Classical state-space models include the Kalman filter (Harvey 1989), an updating procedure whereby the prior estimate of the state is ‘corrected’ by how well it can predict the next observation.  It is carried out as an iterative procedure.  Perhaps I would like to estimate the underlying state $x_t$, given that $y_t$ is observed.  I might want to estimate the transition parameters in a function $f(x_t)$ that describes the process.  I might want to predict $y_{t+k}$ for some time $k$ in the future.  Why predict $y_{t+k}$, rather than just $x_{t+k}$?  I could be interested in both, but I may eventually observe $y_t$, whereas I will never observe $x_t$.  To compare observation with prediction, I need $y_t$. The Kalman filter is not ideal for nonlinear models and when errors are non-Gaussian.  In this section I describe how the Bayesian framework is used for time series data with underlying states. Here I summarize basic elements of the approach from Carlin et al. (1992) and Calder et al. (2003, ecological examples in Clark and Bjornstad 2004).
+
+##Conditional independence in time series data
+
+Before considering the likelihood explicitly, recall the joint probability, now in the context of a time series.  I begin with three states, having joint probability $\left[ x_1, x_2, x_3 \right]$.  For most models I assume that observations are independent and, thus, the likelihood is
+
+$$
+\left[ x_1, x_2, x_3 \right] = \left[ x_1 \right]\left[ x_2 \right]\left[ x_3 \right]
+$$
+The requirement for independent samples motivates much of experimental design.
+So what do I mean here by the term *independent*?
+
+There is a common misconception that 'independent' means 'dissimilar'.  Here's a definition from a recent text referring to the assumption of independence: \emph{'This assumption is violated when the value of one observation tends to be too similar to the values of other observations.'}  There are many definitions like this in the literature.  If I consider a simple regression model, the $Y$'s corresponding to similar values of $X$ will be 'similar'.  If this were not the case, why would I fit a regression?  Clearly, definitions like this miss the point.  
+
+The importance of independent observations results from the fact that the likelihood stands in for the true joint distribution.  A likelihood is equal to the joint distribution only in the special case that a conditional distribution, say $[x_1 | x_2]$, is equal to a marginal distribution $[x_1]$.  If samples are not independent, then
+
+$$
+\left[ x_1, x_2, x_3 \right] \neq \left[ x_1 \right]\left[ x_2 \right]\left[ x_3 \right]
+$$
+because marginal distributions are not the same as conditional distributions.
+
+The joint distribution on the left is hard to think about, because it is an $n = 3$-dimensional problem.   I am not very good at thinking in $n$ dimensions. What if $n = 100$? The traditional likelihood (the assumption of independence) reduces an $n$-dimensional distribution to a product of $n$ univariate distributions. A hierarchical model accomplishes the same dimension reduction, but without ignoring the joint distribution.  It does so by factoring the joint distribution into univariate _conditional_ distributions.  When I factor the joint distribution
+
+$$
+\begin{aligned}
+\left[ x_1, x_2, x_3 \right] &= \left[ x_3 | x_2 , x_1 \right]\left[ x_2, x_1 \right] \\
+ &= \left[ x_3 | x_2, x_1 \right] \left[ x_2 | x_1 \right]\left[x_1 \right]
+\end{aligned}
+$$
+I get a product of three **univariate** distributions.  
+
+Despite the apparent resolution of the dimensionality challenge, I still have a problem.  The remaining challenge is my difficulty in defining the relationship between $x_3$ and the two things that affect it, $x_2$ and $x_1$.  If this does not seem hard to you, consider that $n$ values of $x$ would require me to specify the distribution $\left[x_n | x_1, \dots, x_{n-1} \right]$.  How do I specify how $n-1$ different states combine into one effect?  
+
+Although the joint distribution is high-dimensional, the conditional distributions could be simple.  In the state-space model, where the subscript on $x$ is time, a given state $x_t$ may conditionally depend only on $x_{t-1}$ and $x_{t+1}$.  This is equivalent to saying that, given $x_t$, the values $x_{t-1}$ and $x_{t+1}$ are conditionally independent of each other--the past is conditionally independent of the future (given $x_t$).  This is the *Markov property*.  Where this holds, I can simplify,
+
+$$
+\left[x_n | x_1, \dots, x_{n-1}, x_{n+1}, \dots, n_T \right] = \left[x_t | x_{t-1}, x_{t+1} \right]
+$$
+
+**Conditional independence** allows me to simplify in a hierarchical context.  It allows me to _sample_ conditionally, using _Gibbs sampling_.  Returning to the state-space model, the combined process and observation model is now,
+
+$$
+[\mathbf{x}] \left[ \mathbf{y} | \mathbf{x} \right]  = 
+[x_1] \prod_{t=2}^T \left[x_t | x_{t-1} \right]
+\prod_{t=1}^T \left[y_t | x_t \right] 
+$$
+
+I use a simple random walk to demonstrate.
+
+
+##a random walk model
+
+Consider the pair of equations
+
+$$
+\begin{aligned}
+x_{t+1} &= f_t(x_t) + \epsilon_t \\
+y_t &= g_t(x_t) + \eta_t
+\end{aligned}
+$$
+The first equation is the _process model_, _system equation_, or _evolution equation_. The process model includes a deterministic component $f_t(x_t)$, which encapsulates understanding of a process. The stochasticity in this equation is the second term, the process error, $\epsilon_t$.  It affects the process, because variability introduced at one time step affects the trajectory of change in the future.  Here I assume this is additive, but I could have used some other assumption.  
+
+As a specific example, a random walk could look like this,
+
+$$
+\begin{aligned}
+f_t(x_t) &= x_t \\
+\epsilon_t & \sim N(0,\sigma^2)
+\end{aligned}
+$$
+
+If the observations contain no additive or multiplicative bias a data model might look like this,
+
+$$
+y_t \sim N(x_t,\tau^2)
+$$
+
+##simulated data
+
+As previously, it is a good idea to check algorithms against simulated data where parameter values are known.  Before going further I simulate a data set with missing values:
+
+```{r sim, fig.height=4, fig.cap="Observed (dots) and latent states (lines)"}
+nt   <- 200                      #no. time intervals
+time <- c(1:nt)                  #sample times
+nm   <- 20                       #number of missing values
+wm   <- sort(sample(c(2:nt),nm)) #which are missing
+sig  <- 5                        #process err variance
+tau  <- 20                       #obs error variance
+x    <- rep(10,nt)
+for(t in 2:nt)x[t] <- x[t-1] + rnorm(1,0,sqrt(sig))
+
+y     <- rnorm(nt,x,sqrt(tau))  #simulate observations
+y[wm] <- NA                     #some are missing
+
+plot(time, y, col='grey')
+lines(time, x)
+```
+
+Note that the loop to simulate time series data runs from index `2, ..., nt`.   
+
+The line in the figure shows the 'true' latent states through time.  These values would not be observed.  They are not 'real'.  They are a device that allows for conditional independence in observations and a breakdown of how I think my uncertainty in the model and in the data could affect what is observed.  
+
+Run this code a number of times to get a feel for the dynamics of a random walk.  The autocorrelation in the series makes these random sequences appear as though there is some underlying, non-random control.  A better way to appreciate the random walk is to look at the differenced series,
+
+```{r diff, fig.cap="Random walk above with differenced series below"}
+par(mfrow=c(2,1), mar=c(2,4,1,3), bty='n')
+plot(time, x, type='l')
+plot(time[-1], diff(x), type='l')
+abline(h=0,lty=2)
+abline(h=sqrt(sig)*1.96*c(-1,1),lty=2)           # Gaussian approximation
+abline(h=quantile(diff(x),c(.025,.975)),col=2)   # from time series
+```
+
+An analyst looking at the plot of $x_t$ could fail to appreciate the uncorrelated nature of values, shown in the lower plot.  I have drawn dashed lines to bound 95% of the expected values.
+
+
+`r colFmt(ebreak,'blue')`
+
+`r colFmt('Exercise 1.','blue')`  
+
+* Conduct simlation experiments to determine how different values of `sig` and `tau` affect the behavior of `x`.  
+
+* Determine how these same parameters affect the standard deviation of `x` and `y`.
+
+* Determine how the length of the series `nt` affects the standard deviation in `x` and in the differenced sequence of `x`.
+
+`r colFmt(ebreak,'blue')`
+
+
+
+
+##fitting the model
+
+Here I fit the random walk model to simulated data.  I specify prior distributions and set up a simple MCMC algorithm known as Gibbs sampling.
+
+First I place a prior distribution on the variance parameters that are inverse gamma, 
+
+$$
+\begin{aligned}
+\sigma^2 &\sim IG(s_1, s_2) \\
+\tau^2 &\sim IG(t_1,t_2)
+\end{aligned}
+$$
+
+I want these prior distributions to be centered on values that I believe to be accurate.  Assuming I don't know the values used to simulate the data, my prior distributions for `sig` and `tau` are centered on 8 and 5, respectively.  In addition to mean values, I need to specify weights.  I decide to place more weight on the observation error, proportional to the number of observations, $2 \times T$, and less weight on the process error $2$.  Together, these two values will determine the balance of weight assigned to the underlying process model and to the observed values.  Here it is in R:
+
+```{r ig}
+sp <- varPrior(mu=8, wt=2)          #weak prior
+tp <- varPrior(15,nt)               #wt comparable to data
+sg <- 1/rgamma(1,sp[1],sp[2])       #initialize values
+tg <- 1/rgamma(1,tp[1],tp[2])
+```
+
+With these prior distributions on parameters, the posterior distribution for the random walk model is
+
+$$
+\left[ \mathbf{x}, \sigma^2, \tau^2 | \mathbf{y}, s_1, s_2, t_1, t_2 \right]
+\propto N(x_1|x_0,\sigma^2)  
+\prod_{t=2}^T N \left(x_t | x_{t-1}, \sigma^2 \right)
+\prod_{t=1}^T N\left(y_t | x_t, \tau^2 \right) IG(\sigma^2 | s_1, s_2)
+IG(\tau^2| t_1,t_2)
+$$
+Note that the time index for states is $2, \dots, T$, whereas for observations it is $1, \dots, T$.  Each $x_t$ can be viewed as the prior mean for $x_{t+1}$.  For this reason, I explicitly specify a prior distribution for $x_1$, centered on a value $x_0$.
+
+I have missing values in the data.  I need an index for the locations of these missing values and initialize them to values that are reasonable.  I use this function: 
+
+```{r setup1}
+tmp     <- initialStatesSS(y)
+xg      <- tmp$x
+notMiss <- tmp$notMiss
+miss    <- tmp$miss
+```
+
+
+##a Gibbs sampler
+
+A Gibbs sampler for the state-space model is arranged such that the sample for each latent variable is updated before the next sample is drawn.  For this example, I will simply omit a prior for $x_1$. Once each of the states has been updated, update the variance parameters.  The basic algorithm is the following:
+
+1. Sample each latent state conditional on all others, 
+
+$$
+x_t | x_{t-1}, x_{t+1}, y_t, \sigma^2
+\propto [x_t|x_{t-1}, \sigma^2] [x_{t+1} | x_t, \sigma^2] [y_t | x_t ]
+$$
+
+2. Sample the process variance,
+
+$$
+\sigma^2 | \mathbf{x}, s_1, s_2  \propto \prod_{t=2}^T [x_t | x_{t-1}, \sigma^2][\sigma^2 | s_1, s_2]
+$$
+
+3. Sample the observation variance
+
+$$
+\tau^2 | \mathbf{x}, \mathbf{y}  \propto \prod_{t=1}^T [y_t | x_t, \tau^2][\tau^2 | t_1, t_2]
+$$
+
+4. Repeat until a long converged sequence is available for analysis.
+
+I will need to store the samples.  I define a relatively small number of total steps and establish some matrices to hold samples:
+
+```{r setup2}
+ng     <- 1000             #no. Gibbs steps
+vgibbs <- matrix(0,ng,2)   #store variances
+colnames(vgibbs) <- c('sigma','tau')
+xgibbs <- matrix(0,ng,nt)  #store latent states
+```
+
+Here is a loop that executes the Gibbs sampling algorithm:
+
+```{r gibbsRW}
+
+for(g in 1:ng){
+  
+  xg <- updateSSRW(states=xg,y,missing=wm,tg=tg,sg=sg) # latent states
+  sg <- updateVariance(xg[-1],xg[-nt],sp[1],sp[2])     # process var
+  tg <- updateVariance(y[-wm],xg[-wm],tp[1],tp[2])     # obs variance
+  
+  vgibbs[g,] <- c(sg,tg)                               # store values
+  xgibbs[g,] <- xg
+}
+```
+
+Note three pieces to the algorithm, i) the latent states, ii) the process variance, and iii) the observation variance.
+
+Here are plots of samples and densities:
+
+```{r plotPars, fig.cap="Posterior estimates of variances for the random walk example"}
+.processPars(vgibbs,xtrue=c(sig,tau),CPLOT=T,DPLOT=T) 
+```
+
+Here are estimates of latent states:
+
+```{r plotStates, fig.cap="Posterior estimates of states as a 95% CI (shaded), true values (black line), observations (blue), and missing values (orange)"}
+xpost <- t( apply(xgibbs,2,quantile,c(.5,.025,.975)) ) #95% CI
+
+shadeInterval(time,xpost[,2:3],add=F)              #credible interval
+lines(time,x,lwd=2)                                #true values
+points(time,y,lwd=2,col='blue',cex=.5, pch=16)     #obs values
+points(time[wm],x[wm],col='orange',cex=.5, pch=16) #missing 
+```
+
+#a state-space model with covariates
+
+Now suppose that the process is driven by covariates that change over time,
+
+$$
+x_t \sim N(x_{t-1} + \mathbf{z}'_{t-1} \boldsymbol{\beta}, \sigma^2)
+$$
+
+The second term looks like a regression with a design vector $\mathbf{z}_t$.  At each time step there is an effect that comes from covariates and from the process error.  Here is a simulation from this model:
+
+```{r stateSpaceB, fig.cap='Observed (dots) and latent states (line)'}
+nt   <- 300                       #no. time intervals
+time <- c(1:nt)                   #sample times
+wm   <- 30:60                     #a sequence of missing values
+sig  <- .01                         #process err variance
+tau  <- 4                         #obs error variance
+x    <- rep(0,nt)
+q    <- 3
+
+z    <- matrix( rnorm(q*(nt - 1), .1),nt-1,q)  #design matrix
+z[,1] <- 1
+beta <- matrix(runif(q, -.01,.01))             #coefficient vector
+zb   <- z%*%beta
+
+for(t in 2:nt)x[t] <- x[t-1] + rnorm(1,zb[t-1],sqrt(sig))
+
+y <- rpois(nt, exp(x))
+
+y     <- rnorm(nt,x,sqrt(tau))              #observations
+y[wm] <- NA                                 #missing
+
+plot(time,y, col='grey')
+lines(time,x)
+```
+
+I now need to estimate the coefficients in $\boldsymbol{\beta}$ together with the latent states and the variance parameters.  In the above code the coefficients are the vector `beta`.  Here are some prior distributions, initial states, and matrices to hold samples.  
+
+```{r setupB}
+
+sp <- varPrior(2, 2)          #weak prior
+tp <- varPrior(6, 2)          #wt comparable to data
+
+sg <- 1/rgamma(1,sp[1],sp[2]) #initialize values
+tg <- 1/rgamma(1,tp[1],tp[2])
+
+bg <- beta*0
+
+tmp     <- initialStatesSS(y)
+xg      <- tmp$x
+notMiss <- tmp$notMiss
+miss    <- tmp$miss
+
+ng     <- 1000
+vgibbs <- matrix(0,ng,2)
+xgibbs <- matrix(0,ng,nt)
+bgibbs <- matrix(0,ng,q)
+colnames(vgibbs) <- c('sigma','tau')
+colnames(bgibbs) <- paste('beta',c(0:2),sep='')
+```
+
+Note the additional step in the Gibbs sampler to update coefficients. Otherwise it looks like the previous algorithm: 
+
+```{r gibbsB, fig.cap='Posterior estimates of coefficients'}
+
+for(g in 1:ng){
+  
+  bg <- updateSSbeta(xg, z=z, sg, priorB=matrix(0,q),
+                     priorIVB=diag(.001,q), addStates=T)
+  zb <- z%*%bg
+  xg <- updateSSRW(states=xg,y=y,zb=zb,missing=wm,tg=tg,sg=sg)   
+  sg <- updateVariance(xg[-1],xg[-nt] + zb,sp[1],sp[2])
+  tg <- updateVariance(y[-wm],xg[-wm],tp[1],tp[2])
+  
+  vgibbs[g,] <- c(sg,tg)
+  xgibbs[g,] <- xg
+  bgibbs[g,] <- bg
+}
+
+par(mar=c(3,3,1,1))
+.processPars(bgibbs,xtrue=beta,CPLOT=T,DPLOT=T) 
+```
+
+Here are variances:
+
+```{r varPlots, fig.cap='Variance estimates for model with covariates'}
+.processPars(vgibbs,xtrue=c(sig,tau),CPLOT=T,DPLOT=T) 
+```
+
+
+In addition to variances there are now plots for estimates of the coefficients.  Here are plots of latent states:
+
+```{r plotB, fig.cap="Posterior estimates of states as a 95% CI (shaded), true values (black line), observations (blue), and missing values (orange)"}
+xpost <- t( apply(xgibbs,2,quantile,c(.5,.025,.975)) )
+
+shadeInterval(time,xpost[,2:3],add=F)              #credible interval
+lines(time,xpost[,1],lwd=2)                        #posterior mean
+lines(time,x,lwd=2)                                #true values
+points(time,y,lwd=2,cex=.5, col='blue', pch=16)    #obs values
+points(time[wm],x[wm],col='orange',cex=.5, pch=16) #missing values
+```
+
+Note the effect of a prolonged period of missing data.  Experiment with some different values for `nt`, `sig`, and `tau`.
+
+
+
+
+#a state-space model in jags
+
+Her is a version of the same model in jags.  Note that I simply condition on the first observation, which has a prior distribution centered on the observed value.
+
+```{r hmod}
+cat( "model {
+
+ mu[1] ~ dnorm(y[1],10)
+ xg[1] <- mu[1]
+
+ for(t in 2:nt) {
+   mu[t] <- xg[t-1] + b1 + b2*z[t-1,2] + b3*z[t-1,3]
+   xg[t] ~ dnorm(mu[t],procErr)
+   y[t] ~ dnorm(xg[t],obsErr)
+ }
+
+ procErr ~ dunif(0,10)
+ obsErr  ~ dunif(0,10)
+ sigma <- 1/procErr
+ tau   <- 1/obsErr
+ b1 ~ dunif(-1,1)
+ b2 ~ dunif(-1,1)
+ b3 ~ dunif(-1,1)
+}  ", fill=T,file="stateSpaceModel.txt" )
+```
+
+
+Here is the analysis:
+
+```{r runFixed, warning=F, message=F, fig.height=3}
+library(rjags)
+ssData   <- list(y = y, z = z, nt = nt )
+parNames <- c('b1','b2','b3', 'sigma', 'tau')
+
+ssFit <- jags.model(data=ssData, file="stateSpaceModel.txt")
+print(ssFit)
+
+
+update(ssFit)
+
+ssFit <- coda.samples(ssFit, variable.names = parNames, 
+                       n.iter=5000)
+
+par(mar=c(3,3,1,1))
+plot( as.mcmc(ssFit) )
+```
+
+
+
+
+`r colFmt(ebreak,'blue')`
+
+`r colFmt('Exercise 2.','blue')`  Working in your group, analyze the following model in jags.  Start by simulating the data set.  Then write jags code to fit the model. 
+
+$$x_t \sim N(\alpha + \beta x_{t-1}, \sigma^2)$$
+
+$$y_t \sim Poi( exp(x_t) )$$
+
+`r colFmt(ebreak,'blue')`
+
+
+
+
+
+#stream chemistry application
+
+A former student wanted to know if total dissolved nitrogen (TDN) and dissolved organic nitrogen (DON) can be explained by fluctuations in temperature, precipitation, and chlorine concentation ([Cl]), and if it differs between coastal streams.  We will answer these questions using a heirarchical state-space model.
+
+First I read the data and set up a design matrix for the sites and several covariates:
+
+```{r inStream}
+data <- read.csv('combinedLevelChem2007.csv',header=T)
+nt   <- nrow(data)
+
+formula <- as.formula( ~ prec + Temp*Site + Cl*Site)
+tmp <- model.frame(formula, data, na.action=na.pass)
+z   <- model.matrix(formula, tmp)
+
+slevs  <- attr(data$Site,'levels')
+sl     <- match(data$Site,slevs)
+ns     <- length(slevs) - 1
+ngroup <- ns + 1
+
+ynames <- c('TDN','DON')
+q <- ncol(z)
+y <- data[,ynames[1]]
+xnames <- colnames(z)
+```
+
+There are four sites.  Use the function `colSums` to determine the number of observations by site. 
+
+##multiple time series
+
+This example is complicated by the fact that there are not one, but four time series.  I will stack them up, but I will need to identify the beginning and end of each series and model them accordingly. In the code that follows I make vectors `first` and `last`, holding these values and the design matrix `z`:
+
+```{r sites}
+last  <- which( diff(sl) == 1 )  # first and last row for each site
+first <- c(1,last + 1)
+last  <- c(last,nt)
+```
+
+
+##missing covariates, missing states
+
+I have written a function to indicate the locations of missing values in `y` and `z`, both in the full data set and by sites:
+
+```{r miss}
+v <- getMissX(z, y, first, last)
+prows <- v$prows                 # t rows by site
+rrows <- v$rrows                 # t+1 rows by site
+missz <- v$missx
+missy <- v$missy
+missY <- v$missY                 # missing y by site
+```
+
+I need prior distributions and initial values for parameters and missing values.  In the code below, the initial values for missing states come from a function `initialStatesSS`.
+
+```{r streamSetup}
+priorx   <- colMeans(z,na.rm=T)   #prior mean for missing covariates
+z[missz] <- priorx[missz[,2]]     #initial missing z
+
+sigM <- .1                        #prior mean variances
+tauM <- .1
+sp <- varPrior(sigM, nt)            
+tp <- varPrior(tauM, nt/5)        #weak prior
+
+sg <- 1/rgamma(1,sp[1],sp[2])     #initialize values
+tg <- 1/rgamma(1,tp[1],tp[2])
+bg <- matrix(0,q,1)
+
+tmp <- initialStatesSS(y)        #initial missing y
+xg  <- tmp$x
+```
+
+##Gibbs sampling
+
+In the Gibbs sampler that follows, note two new steps, i) a loop to estimate latent variables by site, and ii) imputation for missing $z$:
+
+```{r streamGibbs}
+ng     <- 1000
+vgibbs <- matrix(0,ng,2)
+xgibbs <- matrix(0,ng,nt)
+bgibbs <- matrix(0,ng,q)
+colnames(vgibbs) <- c('sigma','tau')
+colnames(bgibbs) <- xnames
+
+for(g in 1:ng){
+  
+  # parameters
+  bg <- .updateBeta(z[prows,], xg[rrows], sigma=sg, 
+                          priorIVB=diag(.001,q), priorB=matrix(0,q)) # 
+  zz <- z%*%bg
+  
+  # latent variables by site
+  for(j in 1:ngroup){           
+    jj <- first[j]:last[j]
+    xg[jj] <- updateSSRW(states=xg[jj],yy=y[jj],
+                         zb=zz[jj],missing=missY[[j]],tg=tg,sg=sg)   
+  }
+  
+  # variances
+  sg <- updateVariance(xg[rrows],xg[prows] + zz[prows],sp[1],sp[2])
+  tg <- updateVariance(y[-missy],xg[-missy],tp[1],tp[2])
+  
+  # missing observations
+  z[missz] <- imputeX( missx = missz, xx = z, yy = xg,
+                       bg = bg, sg, priorx )[missz]
+  vgibbs[g,] <- c(sg,tg)
+  xgibbs[g,] <- xg
+  bgibbs[g,] <- bg
+}
+```
+
+
+Here are latent states:
+```{r streamStates}
+xpost <- t( apply(xgibbs,2,quantile,c(.5,.025,.975)) )
+
+par(mfrow=c(2,2),bty='n', mar=c(3,2,2,1))
+for(j in 1:4){
+  ij <- first[j]:last[j]
+  shadeInterval(ij,xpost[ij,2:3],add=F,ylim=c(0,10),xlab='Weeks')  
+  points(ij,y[ij],lwd=2,cex=.1, col='blue')                 #obs 
+  wm <- missY[[j]]
+  points(ij[wm],xpost[ij[wm],1],col='orange',cex=.5,pch=16) #missing
+  title(slevs[j])
+}
+```
+  
+
+Here are some parameter estimates:
+
+```{r streamPlots}
+par(mar=c(1,2,1,2))
+.processPars(bgibbs,xtrue=bg*0,CPLOT=T) 
+
+.processPars(bgibbs,xtrue=bg*0,DPLOT=T) 
+
+.processPars(vgibbs,xtrue=c(sigM,tauM),DPLOT=T) #compare prior mean
+```
+
+Here are some site differences for precipitation and Cl effects:
+
+```{r}
+sites <- sort(as.character(unique(data$Site)))
+
+vars <- c('Temp:', ':Cl')
+par(mfrow=c(2,1),bty='n', mar=c(4,4,2,2))
+
+for(k in 1:2){
+  
+  wk <- grep(vars[k],colnames(bgibbs))
+  bk <- bgibbs[,wk]
+  jtext <- unlist(strsplit(colnames(bk),vars[k]))
+  jtext <- unlist(strsplit(jtext,'Site'))
+  jtext <- jtext[nchar(jtext) > 0]
+
+  xlim <- range(bk)
+  ymax <- 10/diff(xlim)
+  plot(NULL, xlim=xlim,ylim=c(0,ymax),xlab=vars[k],ylab='Density')
+  
+  for(j in 1:ncol(bk)){
+    dk <- density(bk[,j])
+    lines(dk[[1]],dk[[2]],col=j, lwd=2)
+    wmax <- which.max(dk[[2]])
+    text( dk[[1]][wmax], 1.2*dk[[2]][wmax], jtext[j] ,col=j)
+  }
+}
+```
+
+Can you interpret these site differences?
+
+`r colFmt(ebreak,'blue')`
+
+`r colFmt('Exercise 3.','blue')`  
+
+* Before running any more analysis, say what you think should be the variance on the process and the observations.  Justify your answer.
+
+* How much 'weight' on the priors for $\sigma^2, \tau^2$ is needed to insure that the posterior distribution is close to your prior distribution?
+
+* How does the prior on $\sigma^2, \tau^2$ affect estimates of $\mathbf{\beta}$?
+
+* Repeat the analysis with DON as the response variable and interpret results.
+
+* What is the answer to the motivating question: Can total dissolved nitrogen (TDN) and dissolved organic nitrogen (DON) be explained by temperature, precipitation, and chlorine concentation ([Cl]), and does it differs between coastal streams?
+
+`r colFmt(ebreak,'blue')`
+
+
+
+#reprise
+
+State-space models model serial dependence hierarchically.  Hierarchical models do not require marginal independence, only conditional independence.  Modeling latent states allows for dependence structure that could be quite different from what could be achieved with a standard models (e.g., autoregressive).  The flexibility of hierarchical modeling makes it attractive for time series data.  
+
+Informative prior distributions are important for variances.  Examples here show how they affect estimates of covariates and of latent states.  The relative magnitudes of process and observation error determine the extent which data versus process dominate the fit.  
+
+
+
+
+
+

@@ -43,15 +43,11 @@ Log likelihood of exponential distribution is:
 $$
 \log L(\mathbf{y}; \lambda) =  n\log\lambda - n\lambda\bar{y}
 $$
-
 Solving the partial derivative of the log likelihood with respect to $\lambda$, we get the MLE of exponential distribution:
-
 $$
 \hat{\lambda} = \frac{1}{\bar{y}}
 $$
-
 The likelihood ratio is:
-
 $$
 \log R =  \log \lambda_0 + \log \bar{y}  -\bar{y} \lambda_0 + 1
 $$
@@ -93,7 +89,7 @@ Use Fisher Information to find the standard error of the mean of a normal
 sampling distribution.  
 
 $Solution:$ First, we find the likelihood function and only take the proportional
- pieces with respect to $\mu$:
+ pieces w.r.t. $\mu$:
 $$
 L(\mathbf{y};\mu, \sigma^2) 
 = \prod_{i=1}^n \frac{1}{\sqrt{2\pi\sigma^2}} \exp\left\{-\frac12 \frac{(y_i-\mu)^2}{\sigma^2}\right\}
@@ -116,7 +112,7 @@ $$
 $$
 
 $$
-I = \frac{n}{\sigma^2}\bigg\rvert_{\hat{\mu}} = \frac{n}{\sigma^2}
+I = -\frac{d^2}{d\mu^2}\log L(\mu)\bigg\rvert_{\hat{\mu}} = \frac{n}{\sigma^2}
 $$
 
 Now that we have the Fisher's Information, we can use it to estimate the standard error of the mean:
@@ -154,8 +150,7 @@ $$
  = -\frac{n}{\lambda^2}
 $$
 $$
-I = \frac{n}{\lambda^2}\bigg\rvert_{\hat{\lambda}} 
-= \frac{n}{\left(1/\bar{y}\right)^2}
+I = -\frac{d^2}{d\mu^2}\log L(\lambda)\bigg\rvert_{\hat{\lambda}} =\frac{n}{\lambda^2}\bigg\rvert_{\hat{\lambda}} 
 = n\bar{y}^2
 $$
 

@@ -54,6 +54,7 @@ colFmt = function(x,color){
 
 ```{r clarkFunctions, message=FALSE, cache=FALSE}
 source('../clarkFunctions2020.r')
+Rcpp::sourceCpp('../cppFns.cpp')
 ```
 
 
@@ -167,7 +168,7 @@ The variation among groups is large, due both to different parameter values and 
 
 For option C, I use Gibbs sampling, and conditional posteriors ‘borrowing strength’ from the population level parameters—the parameter $a$ is no longer fixed, but instead has a value for each group that is estimated from the data.  The MCMC algorithm includes the conditional 
 
-$$[a_j, b_j | \theta_j] \propto beta(\theta_j | a_j, b) [a_1, \dots, a_n, b]$$
+$$[a_j, b | \theta_j] \propto beta(\theta_j | a_j, b) [a_1, \dots, a_n, b]$$
 
 I will use a uniform distribution for the prior.  Here are simulated groups:
 
