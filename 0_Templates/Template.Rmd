@@ -1,7 +1,7 @@
 ---
 title: "Homework N Responses"
 author: "(Nicholas Bruns), Zeyi Han, Shubhi Sharma, Margaret Swift"
-date: "2/24/2020"
+date: '`r Sys.Date()`'
 output:
   prettydoc::html_pretty:
     theme: architect

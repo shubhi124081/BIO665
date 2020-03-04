@@ -1,0 +1,270 @@
+---
+title: "Homework 6 Responses"
+author: "(Nicholas Bruns), Zeyi Han, Shubhi Sharma, Margaret Swift"
+date: '`r Sys.Date()`'
+output:
+  prettydoc::html_pretty:
+    theme: architect
+    highlight: github
+---
+
+```{r setup, include=F}
+#----------------------------------------------------------------------------
+# LOADING
+knitr::opts_chunk$set(echo=FALSE, eval=TRUE, cache=TRUE)
+pacman::p_load(ggplot2, rjags)
+source('../clarkfunctions2020.R')
+Rcpp::sourceCpp('../cppFns.cpp')
+# any libraries and data here
+
+#----------------------------------------------------------------------------
+# FUNCTIONS
+# put functions here
+
+```
+# Model for Exercises 1 & 2
+Here I use a heirarchical model to examine the effects of tree size (diameter), CO2 fertilization, and their interaction on growth rates.  There are large differences between individuals, so I include a random effect on trees.  I start first with a single-stage regression.  Here is a data set:
+
+```{r readData}
+data   <- read.table('../dataFiles/FACEtrees.txt',header=T)
+data$y <- log(data[,'dnow'])                                   # growth rate
+tmp    <- model.frame(y ~ j + i + diam*trt, data)
+ij     <- apply( cbind(tmp$j, tmp$i), 1, paste0, collapse='-') # tree, plot
+X      <- model.matrix(y ~ diam*trt, tmp)
+y      <- tmp$y
+n      <- length(y)
+```
+
+Here is model object for jags, which is written to a file `growthFixed.txt`:
+
+```{r model}
+cat( "model{
+    for(i in 1:n){
+      y[i]  ~ dnorm(mu[i],tau)
+      mu[i] <- b1 + b2*X[i,2] + b3*X[i,3] + b4*X[i,4]
+    }
+
+    tau     ~ dgamma(0.001,0.001)
+    sigma   <- sqrt(1/tau)
+    
+    b1 ~ dnorm(0.0,1.0E-06)
+    b2 ~ dnorm(0.0,1.0E-06)
+    b3 ~ dnorm(0.0,1.0E-06)
+    b4 ~ dnorm(0.0,1.0E-06)
+  }
+    ", fill=T, file="growthFixed.txt"
+)
+```
+
+Here I run the model and look at the output:
+
+```{r runFixed, warning=F, message=F, fig.height=3, eval=F}
+treeData   <- list(y = y, X = X, n = n )
+parNames <- c('b1','b2','b3','b4', 'sigma')
+
+parInit <- function(){ list(sigma = runif(1,0,1)) }
+
+growFit <- jags.model(data=treeData, file="growthFixed.txt")
+print(growFit)
+
+update(growFit)
+
+growFit <- coda.samples(growFit, variable.names=c("b1","b2","b3","b4"), 
+                       n.iter=5000)
+
+tmp <- summary(growFit)
+print(tmp$statistics)
+
+par(mar=c(3,3,1,1))
+plot( as.mcmc(growFit) )
+
+betaFixed <- cbind( tmp$statistics[,1:2], tmp$quantiles[,c('2.5%','97.5%')] )
+```
+
+
+Here are the data and the best mean prediction for ambient (black) and elevated (red) treatments:
+
+```{r meanPred, eval=F}
+xlim <- range(X[,'diam'])
+xseq <- seq(xlim[1],xlim[2],length=100)
+par(mfrow=c(1,2), bty='n', mar=c(4,4,3,1))
+plot(X[,'diam'], y, col=X[,'trt'] + 1, cex=.1, xlab='Diameter (cm)', 
+     ylab = 'log growth rate (cm/yr)')
+mu <- betaFixed[1,1] + betaFixed[2,1]*xseq
+lines(xseq, mu, lwd=2)
+lines(xseq, mu + betaFixed[3,1] + betaFixed[4,1]*xseq, lwd=2, col=2)
+legend('bottomright', c('ambient','elevated'), text.col=c(1,2), bty='n')
+```
+
+
+
+## Exercise 1 {#q1}
+
+
+Interpret the main effects and interactions in this model.
+
+```{r q1}
+#----------------------------------------------------------------------------
+## EXERCISE 1
+
+```
+
+
+## Exercise 2 {#q2}
+
+Run the model again, including `nfert` (nitrogen fertilization) in addition to other variables.  Interpret its effect.
+
+```{r q2}
+#----------------------------------------------------------------------------
+## EXERCISE 2
+
+```
+
+
+# Model for Exercise 3 & 4
+
+For random effects, I start with labels for the observations by tree:
+
+```{r randMod}
+tn    <- sort(unique(ij))   # tree labels
+ix    <- match(ij,tn)       # random effect by tree
+ntree <- max(ix)            # no. trees
+```
+
+There are `r ntree` individual trees.  Each observation is labeled by the tree to which it belongs in the vector `ix`.  To follow the jags model, I need to recogize the vectorization `ix[i]`, which gives me the individual identity of row `i`.  Now I vectorize again to get the random intercept assigned to this individual, `a1[ix[i]]`.  Here is a model:
+
+```{r hmod}
+cat( "model{
+    for(i in 1:n){
+      y[i]  ~ dnorm(mu[i],tau)
+      mu[i] <- b1 + b2*X[i,2] + b3*X[i,3] + b4*X[i,4] + 
+               a1[ix[i]] + a2[ix[i]]*X[i,2] + a3[ix[i]]*X[i,3] + a4[ix[i]]*X[i,4]
+    }
+    for(j in 1:ntree){
+      a1[j]  ~ dnorm(0.0,tau1)
+      a2[j]  ~ dnorm(0.0,tau2)
+      a3[j]  ~ dnorm(0.0,tau3)
+      a4[j]  ~ dnorm(0.0,tau4)
+    }
+    tau1   ~ dgamma(0.001,0.001)    #RE precision intercept
+    sigma1 <- 1/sqrt(tau1)          #RE variance intercept
+    tau2   ~ dgamma(0.001,0.001)    #RE precision diam
+    sigma2 <- 1/sqrt(tau2)          #RE variance diam
+    tau3   ~ dgamma(0.001,0.001)    #RE precision diam
+    sigma3 <- 1/sqrt(tau3)          #RE variance diam
+    tau4   ~ dgamma(0.001,0.001)
+    sigma4 <- sqrt(1/tau4)
+    tau    ~ dgamma(0.001,0.001)
+    sigma  <- sqrt(1/tau)
+    
+    b1 ~ dnorm(0.0,1.0E-06)
+    b2 ~ dnorm(0.0,1.0E-06)
+    b3 ~ dnorm(0.0,1.0E-06)
+    b4 ~ dnorm(0.0,1.0E-06)
+    }
+    ", fill=T,file="growthRE.txt" )
+```
+
+Note that there are fixed effects, `b1, ..., b4`.  Each random effect, `a1, ..., a4` has `r ntree` values.  Again, the index `ix` identifies the proper individual for each observation `i`.  
+
+The hierarchical nature of model comes from the fact that the variance for `a1`, given by `sigma1` also has a prior distribution.  
+
+Here is a model fit:
+
+```{r fith, eval=F}
+treeData   <- list(y = y, X = X, ix = ix, ntree = ntree, n = n)
+
+growthRE <- jags.model(data=treeData, file="growthRE.txt")
+
+print(growthRE)
+
+update(growthRE)
+
+growthRE <- coda.samples(growthRE, 
+                         variable.names=c("b1","b2","b3","b4",
+                                          "a1","a2","a3","a4",
+                                          "sigma1","sigma2","sigma3","sigma4"), 
+                       n.iter=5000)
+
+tmp <- summary(growthRE)
+print(tmp$statistics)
+
+par(mar=c(3,3,1,1))
+plot( as.mcmc(growthRE) )
+
+betaRE <- cbind( tmp$statistics[,1:2], tmp$quantiles[,c('2.5%','97.5%')] )
+
+
+```
+
+Here are parameter estimates:
+
+```{r plotH, eval=F}
+rePars <- getJagsPars(growthRE)
+fixed  <- rePars$fixed
+beta   <- fixed[1:4,1]
+alpha  <- rePars$mean
+```
+
+Here are mean predictions for diameter at two CO2 treatments.
+
+```{r predH, eval=F}
+# predicted mean
+ylim <- range(y)
+mu   <- beta[1] + beta[2]*xseq
+plot(xseq, mu, type='l',lwd=2, ylim=ylim, xlab='Diameter (cm)', ylab='')
+mu2 <- mu + beta[3] + beta[4]*xseq
+lines(xseq, mu2, type='l',lwd=2, col=2)
+
+# size range by individual
+irange <- matrix( unlist(by(X[,'diam'],ix,range, na.rm=T)),ncol=2,byrow=T)
+
+for(i in 1:ntree){
+  xi <- xseq[xseq > irange[i,1] & xseq < irange[i,2]]
+  mu <- beta[1] + alpha[i,1] + (beta[2] + alpha[i,2])*xi
+  wi <- which(ix == i)[1]
+  if(X[wi,'trt'] == 0){
+    lines(xi, mu, col='grey')
+    next
+  }
+  mu <- mu + beta[3] + alpha[i,3] + (beta[4] + alpha[i,4])*xi 
+  lines(xi, mu, type='l',col=2)
+}
+```
+
+Here is a histogram of alpha values for elevated trees:
+
+```{r}
+# elev <- which(X[,'trt'] == 1)
+# hist((alpha[ix[elev], 3]), nclass=30)
+```
+
+
+## Exercise 3 {#q3}
+
+Interpret the main effects and interactions in this hierarchical model.  How does it compare with the model that included only fixed effects?  Think about the role of variation between individuals versus within individuals.  Speculate on why the differences.
+
+```{r q3}
+#----------------------------------------------------------------------------
+## EXERCISE 3
+
+```
+
+
+## Exercise 4 {#q4}
+
+Include nitrogen fertilization, `nfert` to the hierarchical analysis.  Use DIC to determine if it improves the model.
+
+```{r q4}
+#----------------------------------------------------------------------------
+## EXERCISE 4
+
+```
+
+
+## Appendix {#appendix}
+
+```{r ref.label=knitr::all_labels(), echo = T, eval = F}
+```
+
+
