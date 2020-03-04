@@ -1,0 +1,93 @@
+---
+title: "Homework 7 Responses"
+author: "(Nicholas Bruns), Zeyi Han, Shubhi Sharma, Margaret Swift"
+date: '`r Sys.Date()`'
+output:
+  prettydoc::html_pretty:
+    theme: architect
+    highlight: github
+---
+
+```{r setup, include=F}
+#----------------------------------------------------------------------------
+# LOADING
+knitr::opts_chunk$set(echo=FALSE, eval=TRUE, cache=TRUE)
+pacman::p_load(ggplot2)
+source('../clarkfunctions2020.R')
+Rcpp::sourceCpp('../cppFns.cpp')
+# any libraries and data here
+
+#----------------------------------------------------------------------------
+# FUNCTIONS
+# put functions here
+
+```
+
+
+## Exercise 1 {#q1}
+
+* Conduct simulation experiments to determine how different values of `sig` and 
+`tau` affect the behavior of `x`.  
+
+* Determine how these same parameters affect the standard deviation of `x` and 
+`y`.
+
+* Determine how the length of the series `nt` affects the standard deviation in 
+`x` and in the differenced sequence of `x`.
+
+
+```{r q1}
+#----------------------------------------------------------------------------
+## EXERCISE 1
+
+```
+
+
+## Exercise 2 {#q2}
+
+Working in your group, analyze the following model in jags.  Start by simulating 
+the data set.  Then write jags code to fit the model. 
+
+$$x_t \sim N(\alpha + \beta x_{t-1}, \sigma^2)$$
+
+$$y_t \sim Poi( exp(x_t) )$$
+
+
+```{r q2}
+#----------------------------------------------------------------------------
+## EXERCISE 2
+
+```
+
+
+## Exercise 3 {#q3}
+
+* Before running any more analysis, say what you think should be the variance on 
+the process and the observations.  Justify your answer.
+
+* How much 'weight' on the priors for $\sigma^2, \tau^2$ is needed to insure that 
+the posterior distribution is close to your prior distribution?
+
+* How does the prior on $\sigma^2, \tau^2$ affect estimates of $\mathbf{\beta}$?
+
+* Repeat the analysis with DON as the response variable and interpret results.
+
+* What is the answer to the motivating question: Can total dissolved nitrogen 
+(TDN) and dissolved organic nitrogen (DON) be explained by temperature, 
+precipitation, and chlorine concentation ([Cl]), and does it differs between 
+coastal streams?
+
+```{r q3}
+#----------------------------------------------------------------------------
+## EXERCISE 3
+
+```
+
+
+
+## Appendix {#appendix}
+
+```{r ref.label=knitr::all_labels(), echo = T, eval = F}
+```
+
+
