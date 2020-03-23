@@ -256,7 +256,7 @@ updateBetaGLM <- function(bg, cmat, x, y, likelihood='binom',
   xmat%*%diag( sqrt(diag(sigma)) )
 }
 
-
+      
 ################### BBS #################
 
 bbsOxV <- function(data){
@@ -329,7 +329,7 @@ bayesReg <- function(formula, data, ng = 3000, burnin = 100, TOBIT=NULL){
   
   if(is.null(TOBIT)){
     TOBIT <- F
-    #    if(nzero > 0)TOBIT <- T
+#    if(nzero > 0)TOBIT <- T
   } 
   
   if(TOBIT)message('fitted as Tobit model')
@@ -428,7 +428,7 @@ bayesReg <- function(formula, data, ng = 3000, burnin = 100, TOBIT=NULL){
                " degrees of freedom, \n root mean sq prediction error ",
                rmspe, ".", sep='')
   cat(out,"\n")
-  
+
   
   list(beta = beta, predictY = py, sigma = median(schains), 
        rmspe = rmspe)
@@ -785,7 +785,7 @@ conditionalMVN <- function(xx, mu, sigma, cindex){
 }
 
 updateBeta <- function(x, y, sigma, priorIVB, priorB, 
-                       XX=NULL){  # random vector of coefficients
+                        XX=NULL){  # random vector of coefficients
   
   if(is.null(XX))XX <- crossprod(x)
   
@@ -818,7 +818,7 @@ smooth.na <- function(x,y){
   
   return(cbind(xnew,ynew))
 }
-shadeInterval <- function(xvalues,loHi,col='grey',ylim=range(loHi),
+shadeInterval <- function(xvalues,loHi,col='grey',ylim=range(loHi,na.rm=T),
                           PLOT=T,add=T,xlab=' ',ylab=' '){
   
   #draw shaded interval
@@ -829,7 +829,7 @@ shadeInterval <- function(xvalues,loHi,col='grey',ylim=range(loHi),
   
   xbound <- c(xvalues,rev(xvalues))
   ybound <- c(loHi[,1],rev(loHi[,2]))
-  if(!add)plot(xvalues,loHi[,1]*0,cex=.01,ylim=c(range(loHi,na.rm=T)),
+  if(!add)plot(xvalues,loHi[,1]*0,cex=.01,ylim=ylim,
                xlab=xlab,ylab=ylab)
   if(PLOT)polygon(xbound,ybound,border=NA,col=col)
   

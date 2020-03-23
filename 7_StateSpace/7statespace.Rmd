@@ -85,9 +85,9 @@ $$
 The requirement for independent samples motivates much of experimental design.
 So what do I mean here by the term *independent*?
 
-There is a common misconception that 'independent' means 'dissimilar'.  Here's a definition from a recent text referring to the assumption of independence: \emph{'This assumption is violated when the value of one observation tends to be too similar to the values of other observations.'}  There are many definitions like this in the literature.  If I consider a simple regression model, the $Y$'s corresponding to similar values of $X$ will be 'similar'.  If this were not the case, why would I fit a regression?  Clearly, definitions like this miss the point.  
+There is a common misconception that 'independent' means 'dissimilar'.  Here's a definition from a recent text referring to the assumption of independence: *'This assumption is violated when the value of one observation tends to be too similar to the values of other observations.'*  There are many definitions like this in the literature.  If I consider a simple regression model, the $Y$'s corresponding to similar values of $X$ will be 'similar'.  If this were not the case, why would I fit a regression?  Clearly, definitions like this miss the point.  
 
-The importance of independent observations results from the fact that the likelihood stands in for the true joint distribution.  A likelihood is equal to the joint distribution only in the special case that a conditional distribution, say $[x_1 | x_2]$, is equal to a marginal distribution $[x_1]$.  If samples are not independent, then
+The importance of independent observations results from the fact that the likelihood is used to represent the true joint distribution.  A likelihood could be equal to the joint distribution only in the special case where a conditional distribution is equal to a marginal distribution, i.e., $[x_1 | x_2] = [x_1]$.  If samples are not independent, then
 
 $$
 \left[ x_1, x_2, x_3 \right] \neq \left[ x_1 \right]\left[ x_2 \right]\left[ x_3 \right]
@@ -206,7 +206,7 @@ An analyst looking at the plot of $x_t$ could fail to appreciate the uncorrelate
 
 ##fitting the model
 
-Here I fit the random walk model to simulated data.  I specify prior distributions and set up a simple MCMC algorithm known as Gibbs sampling.
+Here I fit the random walk model to simulated data.  I specify prior distributions and set up a simple MCMC algorithm using Gibbs sampling.
 
 First I place a prior distribution on the variance parameters that are inverse gamma, 
 
@@ -334,12 +334,12 @@ tau  <- 4                         #obs error variance
 x    <- rep(0,nt)
 q    <- 3
 
-z    <- matrix( rnorm(q*(nt - 1), .1),nt-1,q)  #design matrix
+z     <- matrix( rnorm(q*(nt - 1), .1), nt-1, q)  #design matrix
 z[,1] <- 1
-beta <- matrix(runif(q, -.01,.01))             #coefficient vector
-zb   <- z%*%beta
+beta  <- matrix(runif(q, -.01,.01))             #coefficient vector
+zb    <- z%*%beta
 
-for(t in 2:nt)x[t] <- x[t-1] + rnorm(1,zb[t-1],sqrt(sig))
+for(t in 2:nt)x[t] <- x[t-1] + rnorm(1, zb[t-1], sqrt(sig))
 
 y <- rpois(nt, exp(x))
 
@@ -406,12 +406,12 @@ Here are variances:
 
 In addition to variances there are now plots for estimates of the coefficients.  Here are plots of latent states:
 
-```{r plotB, fig.cap="Posterior estimates of states as a 95% CI (shaded), true values (black line), observations (blue), and missing values (orange)"}
+```{r plotB, fig.cap="Posterior estimates of states as a 95% CI (shaded), true values (brown line), observations (blue), and missing values (orange)"}
 xpost <- t( apply(xgibbs,2,quantile,c(.5,.025,.975)) )
 
 shadeInterval(time,xpost[,2:3],add=F)              #credible interval
+lines(time,x,lwd=2, col = 'brown')                 #true values
 lines(time,xpost[,1],lwd=2)                        #posterior mean
-lines(time,x,lwd=2)                                #true values
 points(time,y,lwd=2,cex=.5, col='blue', pch=16)    #obs values
 points(time[wm],x[wm],col='orange',cex=.5, pch=16) #missing values
 ```
@@ -423,7 +423,7 @@ Note the effect of a prolonged period of missing data.  Experiment with some dif
 
 #a state-space model in jags
 
-Her is a version of the same model in jags.  Note that I simply condition on the first observation, which has a prior distribution centered on the observed value.
+Here is a version of the same model in jags.  Note that I simply condition on the first observation, which has a prior distribution centered on the observed value.
 
 ```{r hmod}
 cat( "model {
@@ -506,7 +506,7 @@ ngroup <- ns + 1
 
 ynames <- c('TDN','DON')
 q <- ncol(z)
-y <- data[,ynames[1]]
+y <- data[,ynames[1]]        # use TDN as response
 xnames <- colnames(z)
 ```
 
@@ -560,10 +560,11 @@ xg  <- tmp$x
 In the Gibbs sampler that follows, note two new steps, i) a loop to estimate latent variables by site, and ii) imputation for missing $z$:
 
 ```{r streamGibbs}
-ng     <- 1000
-vgibbs <- matrix(0,ng,2)
-xgibbs <- matrix(0,ng,nt)
-bgibbs <- matrix(0,ng,q)
+ng     <- 2000
+vgibbs <- matrix(0, ng, 2)
+xgibbs <- matrix(0, ng, nt)
+bgibbs <- matrix(0, ng, q)
+zgibbs <- matrix(0, ng, length(missz))
 colnames(vgibbs) <- c('sigma','tau')
 colnames(bgibbs) <- xnames
 
@@ -572,17 +573,17 @@ for(g in 1:ng){
   # parameters
   bg <- .updateBeta(z[prows,], xg[rrows], sigma=sg, 
                           priorIVB=diag(.001,q), priorB=matrix(0,q)) # 
-  zz <- z%*%bg
+  mu <- z%*%bg
   
   # latent variables by site
   for(j in 1:ngroup){           
     jj <- first[j]:last[j]
     xg[jj] <- updateSSRW(states=xg[jj],yy=y[jj],
-                         zb=zz[jj],missing=missY[[j]],tg=tg,sg=sg)   
+                         zb=mu[jj],missing=missY[[j]],tg=tg,sg=sg)   
   }
   
   # variances
-  sg <- updateVariance(xg[rrows],xg[prows] + zz[prows],sp[1],sp[2])
+  sg <- updateVariance(xg[rrows],xg[prows] + mu[prows],sp[1],sp[2])
   tg <- updateVariance(y[-missy],xg[-missy],tp[1],tp[2])
   
   # missing observations
@@ -591,6 +592,7 @@ for(g in 1:ng){
   vgibbs[g,] <- c(sg,tg)
   xgibbs[g,] <- xg
   bgibbs[g,] <- bg
+  zgibbs[g,] <- z[missz]
 }
 ```
 
@@ -610,11 +612,45 @@ for(j in 1:4){
 }
 ```
   
+  Here are the missing z's;
+  
+```{r missingz}
+
+# variables that are missing;
+zvars <- table(missz[,2])
+
+zpost <- t( apply(zgibbs,2,quantile,c(.5,.025,.975)) )
+
+zvar  <- 3 # I choose variable 3: temperature
+
+par(mfrow=c(2,2),bty='n', mar=c(3,2,2,1))
+for(j in 1:4){
+  
+  ww <- which(missz[,2] == zvar & missz[,1] >= first[j] & missz[,1] <= last[j])
+  zq <- zpost[ww,]
+  
+  mj <- missz[ww, 1]
+  
+  zj <- matrix(z[,zvar], nt, 3)
+  zj[,2:3] <- 0
+  zj[ mj,]  <- zq
+  
+  ij <- first[j]:last[j]
+  ylim <- range(zj[ij,])
+  shadeInterval(ij,zj[ij,2:3], add=F, ylim = ylim, xlab='Weeks',
+                col='brown')  
+  lines(ij, zj[ij,1])
+  segments(mj, zq[,2], mj, zq[,3], lwd = 1, col='brown')
+  points(mj, zq[,1], col='brown')
+  
+  if(j == 1)title(colnames(z)[zvar])
+}
+
+```
 
 Here are some parameter estimates:
 
 ```{r streamPlots}
-par(mar=c(1,2,1,2))
 .processPars(bgibbs,xtrue=bg*0,CPLOT=T) 
 
 .processPars(bgibbs,xtrue=bg*0,DPLOT=T) 
@@ -659,7 +695,7 @@ Can you interpret these site differences?
 
 * Before running any more analysis, say what you think should be the variance on the process and the observations.  Justify your answer.
 
-* How much 'weight' on the priors for $\sigma^2, \tau^2$ is needed to insure that the posterior distribution is close to your prior distribution?
+* How much 'weight' on the priors for $\sigma^2, \tau^2$ is needed to insure that the posterior distribution for latent states is close to your observations?
 
 * How does the prior on $\sigma^2, \tau^2$ affect estimates of $\mathbf{\beta}$?
 
@@ -676,6 +712,7 @@ Can you interpret these site differences?
 State-space models model serial dependence hierarchically.  Hierarchical models do not require marginal independence, only conditional independence.  Modeling latent states allows for dependence structure that could be quite different from what could be achieved with a standard models (e.g., autoregressive).  The flexibility of hierarchical modeling makes it attractive for time series data.  
 
 Informative prior distributions are important for variances.  Examples here show how they affect estimates of covariates and of latent states.  The relative magnitudes of process and observation error determine the extent which data versus process dominate the fit.  
+
 
 
 
