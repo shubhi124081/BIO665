@@ -1,6 +1,6 @@
 ---
 title: "Homework 6 Responses"
-author: "(Nicholas Bruns), Zeyi Han, Shubhi Sharma, Margaret Swift"
+author: "Zeyi Han, Shubhi Sharma, Margaret Swift"
 date: '`r Sys.Date()`'
 output:
   prettydoc::html_pretty:
