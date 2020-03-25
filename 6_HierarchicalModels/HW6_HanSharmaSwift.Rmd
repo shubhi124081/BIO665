@@ -260,6 +260,108 @@ Include nitrogen fertilization, `nfert` to the hierarchical analysis.  Use DIC t
 #----------------------------------------------------------------------------
 ## EXERCISE 4
 
+```{r readData}
+data   <- read.table('../dataTreeFACE.txt',header=T)
+data$y <- log(data[,'dnow'])                                   # growth rate
+tmp2    <- model.frame(y ~ j + i + diam*trt + nfert, data)
+ij     <- apply( cbind(tmp2$j, tmp2$i), 1, paste0, collapse='-') # tree, plot
+X      <- model.matrix(y ~ diam*trt + nfert, tmp2)
+y      <- tmp2$y
+n      <- length(y)
+```
+ 
+```{r randMod}
+tn    <- sort(unique(ij))   # tree labels
+ix    <- match(ij,tn)       # random effect by tree
+ntree <- max(ix)            # no. trees
+
+cat( "model{
+    for(i in 1:n){
+      y[i]  ~ dnorm(mu[i],tau)
+      mu[i] <- b1 + b2*X[i,2] + b3*X[i,3] + b4*X[i,4] + b5*X[i,5] +
+               a1[ix[i]] + a2[ix[i]]*X[i,2] + a3[ix[i]]*X[i,3] + a4[ix[i]]*X[i,4] +  a5[ix[i]]*X[i,5]
+    }
+    for(j in 1:ntree){
+      a1[j]  ~ dnorm(0.0,tau1)
+      a2[j]  ~ dnorm(0.0,tau2)
+      a3[j]  ~ dnorm(0.0,tau3)
+      a4[j]  ~ dnorm(0.0,tau4)
+      a5[j]  ~ dnorm(0.0,tau5)
+    }
+    tau1   ~ dgamma(0.001,0.001)    #RE precision intercept
+    sigma1 <- 1/sqrt(tau1)          #RE variance intercept
+    tau2   ~ dgamma(0.001,0.001)    #RE precision diam
+    sigma2 <- 1/sqrt(tau2)          #RE variance diam
+    tau3   ~ dgamma(0.001,0.001)    #RE precision diam
+    sigma3 <- 1/sqrt(tau3)          #RE variance diam
+    tau4   ~ dgamma(0.001,0.001)
+    sigma4 <- sqrt(1/tau4)
+    tau5   ~ dgamma(0.001,0.001)
+    sigma5 <- sqrt(1/tau5)
+    tau    ~ dgamma(0.001,0.001)
+    sigma  <- sqrt(1/tau)
+    
+    b1 ~ dnorm(0.0,1.0E-06)
+    b2 ~ dnorm(0.0,1.0E-06)
+    b3 ~ dnorm(0.0,1.0E-06)
+    b4 ~ dnorm(0.0,1.0E-06)
+    b5 ~ dnorm(0.0,1.0E-06)
+    }
+    ", fill=T,file="growthRE2.txt" )
+```
+
+
+```{r mcmc}
+treeData   <- list(y = y, X = X, ix = ix, ntree = ntree, n = n)
+
+growthRE2 <- jags.model(data=treeData, file="growthRE2.txt")
+
+print(growthRE2)
+
+update(growthRE2)
+
+growthRE2 <- coda.samples(growthRE2, 
+                         variable.names=c("b1","b2","b3","b4","b5",
+                                          "a1","a2","a3","a4","a5",
+                                          "sigma1","sigma2","sigma3","sigma4","sigma5"), 
+                       n.iter=5000)
+
+tmp2 <- summary(growthRE2)
+
+par(mar=c(3,3,1,1))
+# plot( as.mcmc(growthRE) )
+
+betaRE2 <- cbind( tmp2$statistics[,1:2], tmp2$quantiles[,c('2.5%','97.5%')] )
+head(betaRE2)
+tail(betaRE2,10)
+
+```
+
+Here are parameter estimates:
+
+```{r plotH}
+
+cnames <- colnames(growthRE2[[1]])
+a1     <- which(startsWith(cnames, 'a1'))
+a2     <- which(startsWith(cnames, 'a2'))
+a3     <- which(startsWith(cnames, 'a3'))
+a4     <- which(startsWith(cnames, 'a4'))
+a5     <- which(startsWith(cnames, 'a5'))
+
+bg     <- which(startsWith(cnames, 'b'))
+sg     <- which(startsWith(cnames, 's'))
+
+bgibbs <- growthRE2[[1]][,bg]
+sgibbs <- growthRE2[[1]][,sg]
+
+beta2  <- apply(bgibbs,2, mean)
+
+alpha2 <- cbind( apply(growthRE2[[1]][,a1],2, mean), 
+                apply(growthRE2[[1]][,a2],2, mean), 
+                apply(growthRE2[[1]][,a3],2, mean), 
+                apply(growthRE2[[1]][,a4],2, mean),
+                apply(growthRE2[[1]][,a5],2, mean))
+
 ```
 
 
