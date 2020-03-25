@@ -248,6 +248,7 @@ Interpret the main effects and interactions in this hierarchical model.  How doe
 #----------------------------------------------------------------------------
 ## EXERCISE 3
 
+This is a classic case of Simpson's paradox. The model that only includes fixed effects shows us first that elevated $CO_2$ the growth rate is higher than ambient $CO_2$ levels. The second, it appears like the growth rate increases as trees get bigger (i.e. trees with larger diameters grow faster). When random effects for accounting for individual variation are included, the direction of the slope between diameter growth and diameter change indicating that trees that grow faster are bigger. Therefore the hierarchical model with random effects and fixed effects account for variation between individuals through the fixed effects are well within individuals through the random effects. This makes the Simpson paradox obvious- when we only look at aggregate trends, this is trends only across individuals without accounting for within-individual variation, the relationship is directionally different from when we do account for individual variation. 
 ```
 
 
