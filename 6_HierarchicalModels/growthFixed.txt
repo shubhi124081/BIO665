@@ -1,15 +1,16 @@
 model{
     for(i in 1:n){
       y[i]  ~ dnorm(mu[i],tau)
-      mu[i] <- b1 + b2*X[i,2] + b3*X[i,3] + b4*X[i,4]
+      mu[i] <- intercept + diameter*X[i,2] + co2treat*X[i,3] + nfert*X[i,4] + inax*X[i,5]
     }
 
     tau     ~ dgamma(0.001,0.001)
     sigma   <- sqrt(1/tau)
     
-    b1 ~ dnorm(0.0,1.0E-06)
-    b2 ~ dnorm(0.0,1.0E-06)
-    b3 ~ dnorm(0.0,1.0E-06)
-    b4 ~ dnorm(0.0,1.0E-06)
+    intercept ~ dnorm(0.0,1.0E-06)
+    diameter ~ dnorm(0.0,1.0E-06)
+    co2treat ~ dnorm(0.0,1.0E-06)
+    nfert ~ dnorm(0.0,1.0E-06)
+    inax ~ dnorm(0.0,1.0E-06)
   }
     
