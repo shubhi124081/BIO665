@@ -22,246 +22,130 @@ Rcpp::sourceCpp('../cppFns.cpp')
 # put functions here
 
 ```
-# Model for Exercises 1 & 2
-Here I use a heirarchical model to examine the effects of tree size (diameter), CO2 fertilization, and their interaction on growth rates.  There are large differences between individuals, so I include a random effect on trees.  I start first with a single-stage regression.  Here is a data set:
 
-```{r readData}
+## Exercise 1 {#q1}
+_Interpret the main effects and interactions in this model._
+
+I've renamed the parameters used in the JAGS model to make it a bit easier to interpret. From the density and trace plots, it is clear that all four chains converged rather quickly. The intercept is negative here, while both the CO2 treatment and the tree's diameter affect growth rates positively. The interaction of both CO2 treatment and diameter, however, is slightly negative, hinting at something more going on beneath the surface of this analysis. As we will see later on, there is a Simpson's paradox underlying these data, and this hidden group effect might be causing the seemingly competing contributions of CO2 treatment and diameter versus their interaction.
+
+```{r q1hide, results='hide'}
+# Here is a data set:
 data   <- read.table('../dataFiles/FACEtrees.txt',header=T)
-data$y <- log(data[,'dnow'])                                   # growth rate
+data$y <- log(data[,'dnow']) # growth rate -- log of diameter now
 tmp    <- model.frame(y ~ j + i + diam*trt, data)
 ij     <- apply( cbind(tmp$j, tmp$i), 1, paste0, collapse='-') # tree, plot
 X      <- model.matrix(y ~ diam*trt, tmp)
 y      <- tmp$y
 n      <- length(y)
-```
 
-Here is model object for jags, which is written to a file `growthFixed.txt`:
-
-```{r model}
+# Here is model object for jags, which is written to a file `growthFixed.txt`:
 cat( "model{
     for(i in 1:n){
       y[i]  ~ dnorm(mu[i],tau)
-      mu[i] <- b1 + b2*X[i,2] + b3*X[i,3] + b4*X[i,4]
+      mu[i] <- intercept + diameter*X[i,2] + co2treat*X[i,3] + inax*X[i,4]
     }
 
     tau     ~ dgamma(0.001,0.001)
     sigma   <- sqrt(1/tau)
     
-    b1 ~ dnorm(0.0,1.0E-06)
-    b2 ~ dnorm(0.0,1.0E-06)
-    b3 ~ dnorm(0.0,1.0E-06)
-    b4 ~ dnorm(0.0,1.0E-06)
+    intercept ~ dnorm(0.0,1.0E-06)
+    diameter ~ dnorm(0.0,1.0E-06)
+    co2treat ~ dnorm(0.0,1.0E-06)
+    inax ~ dnorm(0.0,1.0E-06)
   }
     ", fill=T, file="growthFixed.txt"
 )
+
+# Here I run the model and look at the output:
+treeData   <- list(y = y, X = X, n = n )
+varNames <- c('intercept', 'diameter', 'co2treat', 'inax')
+parNames <- c(varNames, 'sigma')
+parInit <- function(){ list(sigma = runif(1,0,1)) }
+growFit <- invisible(jags.model(data=treeData, file="growthFixed.txt"))
+update(growFit)
+growFit <- coda.samples(growFit, variable.names=varNames, n.iter=5000)
+
 ```
 
-Here I run the model and look at the output:
-
-```{r runFixed, warning=F, message=F, fig.height=3, eval=F}
-treeData   <- list(y = y, X = X, n = n )
-parNames <- c('b1','b2','b3','b4', 'sigma')
-
-parInit <- function(){ list(sigma = runif(1,0,1)) }
-
-growFit <- jags.model(data=treeData, file="growthFixed.txt")
-print(growFit)
-
-update(growFit)
-
-growFit <- coda.samples(growFit, variable.names=c("b1","b2","b3","b4"), 
-                       n.iter=5000)
-
+```{r q1plot}
 tmp <- summary(growFit)
-print(tmp$statistics)
-
+betaFixed <- cbind( tmp$statistics[,1:2], tmp$quantiles[,c('2.5%','97.5%')] )
+print(betaFixed)
 par(mar=c(3,3,1,1))
 plot( as.mcmc(growFit) )
-
-betaFixed <- cbind( tmp$statistics[,1:2], tmp$quantiles[,c('2.5%','97.5%')] )
 ```
-
-
-Here are the data and the best mean prediction for ambient (black) and elevated (red) treatments:
-
-```{r meanPred, eval=F}
-xlim <- range(X[,'diam'])
-xseq <- seq(xlim[1],xlim[2],length=100)
-par(mfrow=c(1,2), bty='n', mar=c(4,4,3,1))
-plot(X[,'diam'], y, col=X[,'trt'] + 1, cex=.1, xlab='Diameter (cm)', 
-     ylab = 'log growth rate (cm/yr)')
-mu <- betaFixed[1,1] + betaFixed[2,1]*xseq
-lines(xseq, mu, lwd=2)
-lines(xseq, mu + betaFixed[3,1] + betaFixed[4,1]*xseq, lwd=2, col=2)
-legend('bottomright', c('ambient','elevated'), text.col=c(1,2), bty='n')
-```
-
-
-
-## Exercise 1 {#q1}
-
-
-Interpret the main effects and interactions in this model.
-
-```{r q1}
-#----------------------------------------------------------------------------
-## EXERCISE 1
-
-```
-
 
 ## Exercise 2 {#q2}
 
-Run the model again, including `nfert` (nitrogen fertilization) in addition to other variables.  Interpret its effect.
+_Run the model again, including `nfert` (nitrogen fertilization) in addition to other variables.  Interpret its effect._
 
-```{r q2}
+Results from the model below. With the addition of the `nfert` predictor, the density outputs from JAGS remain the same for the CO2 treatment, tree diameter, and their interaction. The MCMC chain for nitrogen fertilization is much noisier, but likewise the chain converges quickly. It seems that nitrogen fertilization has negatively affected the growth rates of these trees. This is a curious result, as usually one would think that adding fertilizer would help with plant growth. Perhaps there is some confounding variable we are missing here--maybe added nitrogen is encouraging competitive growth of weedy species nearby, or too much nitrogen is being added and burning the trees' roots. This is an interesting finding, regardless, and could be investigated further.
+
+```{r q2hide, results='hide'}
 #----------------------------------------------------------------------------
 ## EXERCISE 2
 
-```
+# DATA
+tmp    <- model.frame(y ~ j + i + diam*trt + nfert, data)
+ij     <- apply( cbind(tmp$j, tmp$i), 1, paste0, collapse='-') # tree, plot
+X      <- model.matrix(y ~ diam*trt + nfert, tmp)
+y      <- tmp$y
+n      <- length(y)
 
-
-# Model for Exercise 3 & 4
-
-For random effects, I start with labels for the observations by tree:
-
-```{r randMod}
-tn    <- sort(unique(ij))   # tree labels
-ix    <- match(ij,tn)       # random effect by tree
-ntree <- max(ix)            # no. trees
-```
-
-There are `r ntree` individual trees.  Each observation is labeled by the tree to which it belongs in the vector `ix`.  To follow the jags model, I need to recogize the vectorization `ix[i]`, which gives me the individual identity of row `i`.  Now I vectorize again to get the random intercept assigned to this individual, `a1[ix[i]]`.  Here is a model:
-
-```{r hmod}
+# JAGS
 cat( "model{
     for(i in 1:n){
       y[i]  ~ dnorm(mu[i],tau)
-      mu[i] <- b1 + b2*X[i,2] + b3*X[i,3] + b4*X[i,4] + 
-               a1[ix[i]] + a2[ix[i]]*X[i,2] + a3[ix[i]]*X[i,3] + a4[ix[i]]*X[i,4]
+      mu[i] <- intercept + diameter*X[i,2] + co2treat*X[i,3] + nfert*X[i,4] + inax*X[i,5]
     }
-    for(j in 1:ntree){
-      a1[j]  ~ dnorm(0.0,tau1)
-      a2[j]  ~ dnorm(0.0,tau2)
-      a3[j]  ~ dnorm(0.0,tau3)
-      a4[j]  ~ dnorm(0.0,tau4)
-    }
-    tau1   ~ dgamma(0.001,0.001)    #RE precision intercept
-    sigma1 <- 1/sqrt(tau1)          #RE variance intercept
-    tau2   ~ dgamma(0.001,0.001)    #RE precision diam
-    sigma2 <- 1/sqrt(tau2)          #RE variance diam
-    tau3   ~ dgamma(0.001,0.001)    #RE precision diam
-    sigma3 <- 1/sqrt(tau3)          #RE variance diam
-    tau4   ~ dgamma(0.001,0.001)
-    sigma4 <- sqrt(1/tau4)
-    tau    ~ dgamma(0.001,0.001)
-    sigma  <- sqrt(1/tau)
+
+    tau     ~ dgamma(0.001,0.001)
+    sigma   <- sqrt(1/tau)
     
-    b1 ~ dnorm(0.0,1.0E-06)
-    b2 ~ dnorm(0.0,1.0E-06)
-    b3 ~ dnorm(0.0,1.0E-06)
-    b4 ~ dnorm(0.0,1.0E-06)
-    }
-    ", fill=T,file="growthRE.txt" )
-```
-
-Note that there are fixed effects, `b1, ..., b4`.  Each random effect, `a1, ..., a4` has `r ntree` values.  Again, the index `ix` identifies the proper individual for each observation `i`.  
-
-The hierarchical nature of model comes from the fact that the variance for `a1`, given by `sigma1` also has a prior distribution.  
-
-Here is a model fit:
-
-```{r fith, eval=F}
-treeData   <- list(y = y, X = X, ix = ix, ntree = ntree, n = n)
-
-growthRE <- jags.model(data=treeData, file="growthRE.txt")
-
-print(growthRE)
-
-update(growthRE)
-
-growthRE <- coda.samples(growthRE, 
-                         variable.names=c("b1","b2","b3","b4",
-                                          "a1","a2","a3","a4",
-                                          "sigma1","sigma2","sigma3","sigma4"), 
-                       n.iter=5000)
-
-tmp <- summary(growthRE)
-print(tmp$statistics)
-
-par(mar=c(3,3,1,1))
-plot( as.mcmc(growthRE) )
-
-betaRE <- cbind( tmp$statistics[,1:2], tmp$quantiles[,c('2.5%','97.5%')] )
-
-
-```
-
-Here are parameter estimates:
-
-```{r plotH, eval=F}
-rePars <- getJagsPars(growthRE)
-fixed  <- rePars$fixed
-beta   <- fixed[1:4,1]
-alpha  <- rePars$mean
-```
-
-Here are mean predictions for diameter at two CO2 treatments.
-
-```{r predH, eval=F}
-# predicted mean
-ylim <- range(y)
-mu   <- beta[1] + beta[2]*xseq
-plot(xseq, mu, type='l',lwd=2, ylim=ylim, xlab='Diameter (cm)', ylab='')
-mu2 <- mu + beta[3] + beta[4]*xseq
-lines(xseq, mu2, type='l',lwd=2, col=2)
-
-# size range by individual
-irange <- matrix( unlist(by(X[,'diam'],ix,range, na.rm=T)),ncol=2,byrow=T)
-
-for(i in 1:ntree){
-  xi <- xseq[xseq > irange[i,1] & xseq < irange[i,2]]
-  mu <- beta[1] + alpha[i,1] + (beta[2] + alpha[i,2])*xi
-  wi <- which(ix == i)[1]
-  if(X[wi,'trt'] == 0){
-    lines(xi, mu, col='grey')
-    next
+    intercept ~ dnorm(0.0,1.0E-06)
+    diameter ~ dnorm(0.0,1.0E-06)
+    co2treat ~ dnorm(0.0,1.0E-06)
+    nfert ~ dnorm(0.0,1.0E-06)
+    inax ~ dnorm(0.0,1.0E-06)
   }
-  mu <- mu + beta[3] + alpha[i,3] + (beta[4] + alpha[i,4])*xi 
-  lines(xi, mu, type='l',col=2)
-}
+    ", fill=T, file="growthFixed.txt"
+)
+treeData   <- list(y = y, X = X, n = n )
+variable.names <- c("intercept","diameter","co2treat","nfert","inax")
+parNames <- c(variable.names,'sigma')
+parInit <- function(){ list(sigma = runif(1,0,1)) }
+growFit <- jags.model(data=treeData, file="growthFixed.txt")
+update(growFit)
+growFit <- coda.samples(growFit, variable.names=variable.names, n.iter=5000)
+
 ```
 
-Here is a histogram of alpha values for elevated trees:
-
-```{r}
-# elev <- which(X[,'trt'] == 1)
-# hist((alpha[ix[elev], 3]), nclass=30)
+```{r q2plot}
+tmp <- summary(growFit)
+betaFixed <- cbind( tmp$statistics[,1:2], tmp$quantiles[,c('2.5%','97.5%')] )
+print(betaFixed)
+par(mar=c(3,3,1,1))
+plot( as.mcmc(growFit) )
 ```
-
-
-## Exercise 3 {#q3}
-
-Interpret the main effects and interactions in this hierarchical model.  How does it compare with the model that included only fixed effects?  Think about the role of variation between individuals versus within individuals.  Speculate on why the differences.
-
-```{r q3}
-#----------------------------------------------------------------------------
-## EXERCISE 3
-
-This is a classic case of Simpson's paradox. The model that only includes fixed effects shows us first that elevated $CO_2$ the growth rate is higher than ambient $CO_2$ levels. The second, it appears like the growth rate increases as trees get bigger (i.e. trees with larger diameters grow faster). When random effects for accounting for individual variation are included, the direction of the slope between diameter growth and diameter change indicating that trees that grow faster are bigger. Therefore the hierarchical model with random effects and fixed effects account for variation between individuals through the fixed effects are well within individuals through the random effects. This makes the Simpson paradox obvious- when we only look at aggregate trends, this is trends only across individuals without accounting for within-individual variation, the relationship is directionally different from when we do account for individual variation. 
-```
-
 
 ## Exercise 4 {#q4}
 
-Include nitrogen fertilization, `nfert` to the hierarchical analysis.  Use DIC to determine if it improves the model.
+_Interpret the main effects and interactions in this hierarchical model.  How does it compare with the model that included only fixed effects?  Think about the role of variation between individuals versus within individuals.  Speculate on why the differences._
 
-```{r q4}
+This is a classic case of Simpson's paradox. The model that only includes fixed effects shows us first that elevated $CO_2$ the growth rate is higher than ambient $CO_2$ levels. The second, it appears like the growth rate increases as trees get bigger (i.e. trees with larger diameters grow faster). When random effects for accounting for individual variation are included, the direction of the slope between diameter growth and diameter change indicating that trees that grow faster are bigger. Therefore the hierarchical model with random effects and fixed effects account for variation between individuals through the fixed effects are well within individuals through the random effects. This makes the Simpson paradox obvious- when we only look at aggregate trends, this is trends only across individuals without accounting for within-individual variation, the relationship is directionally different from when we do account for individual variation. 
+
+## Exercise 5 {#q5}
+
+_Include nitrogen fertilization, `nfert` to the hierarchical analysis.  Use DIC to determine if it improves the model._
+
+The adjusted model's code and outputs are given below. We really struggled with calculating the DIC on this one, so we don't have that comparison. If we could go over the DIC again in class, that would be appreciated--we were not sure what to plug in for $\theta$ or $\bar{\theta}$, or how to calculate $\bar{D}$.
+
+
+```{r q5}
 #----------------------------------------------------------------------------
-## EXERCISE 4
+## EXERCISE 5
 
-```{r readData}
-data   <- read.table('../dataTreeFACE.txt',header=T)
+data   <- read.table('../dataFiles/FACEtrees.txt',header=T)
 data$y <- log(data[,'dnow'])                                   # growth rate
 tmp2    <- model.frame(y ~ j + i + diam*trt + nfert, data)
 ij     <- apply( cbind(tmp2$j, tmp2$i), 1, paste0, collapse='-') # tree, plot
@@ -313,41 +197,26 @@ cat( "model{
 
 ```{r mcmc}
 treeData   <- list(y = y, X = X, ix = ix, ntree = ntree, n = n)
-
 growthRE2 <- jags.model(data=treeData, file="growthRE2.txt")
-
-print(growthRE2)
-
 update(growthRE2)
-
 growthRE2 <- coda.samples(growthRE2, 
                          variable.names=c("b1","b2","b3","b4","b5",
-                                          "a1","a2","a3","a4","a5",
-                                          "sigma1","sigma2","sigma3","sigma4","sigma5"), 
-                       n.iter=5000)
-
+                                          "a1","a2","a3","a4","a5", "sigma1","sigma2","sigma3","sigma4","sigma5"), n.iter=5000)
 tmp2 <- summary(growthRE2)
-
 par(mar=c(3,3,1,1))
-# plot( as.mcmc(growthRE) )
-
 betaRE2 <- cbind( tmp2$statistics[,1:2], tmp2$quantiles[,c('2.5%','97.5%')] )
-head(betaRE2)
-tail(betaRE2,10)
-
 ```
 
-Here are parameter estimates:
+
 
 ```{r plotH}
-
+# Here are parameter estimates:
 cnames <- colnames(growthRE2[[1]])
 a1     <- which(startsWith(cnames, 'a1'))
 a2     <- which(startsWith(cnames, 'a2'))
 a3     <- which(startsWith(cnames, 'a3'))
 a4     <- which(startsWith(cnames, 'a4'))
 a5     <- which(startsWith(cnames, 'a5'))
-
 bg     <- which(startsWith(cnames, 'b'))
 sg     <- which(startsWith(cnames, 's'))
 
@@ -361,9 +230,7 @@ alpha2 <- cbind( apply(growthRE2[[1]][,a1],2, mean),
                 apply(growthRE2[[1]][,a3],2, mean), 
                 apply(growthRE2[[1]][,a4],2, mean),
                 apply(growthRE2[[1]][,a5],2, mean))
-
 ```
-
 
 ## Appendix {#appendix}
 
