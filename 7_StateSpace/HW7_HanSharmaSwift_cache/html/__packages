@@ -1,2 +1,6 @@
 base
 ggplot2
+dplyr
+Rcpp
+RcppZiggurat
+Rfast

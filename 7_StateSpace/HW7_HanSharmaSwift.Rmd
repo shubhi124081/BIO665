@@ -1,6 +1,6 @@
 ---
 title: "Homework 7 Responses"
-author: "(Nicholas Bruns), Zeyi Han, Shubhi Sharma, Margaret Swift"
+author: "Zeyi Han, Shubhi Sharma, Margaret Swift"
 date: '`r Sys.Date()`'
 output:
   prettydoc::html_pretty:
@@ -12,7 +12,7 @@ output:
 #----------------------------------------------------------------------------
 # LOADING
 knitr::opts_chunk$set(echo=FALSE, eval=TRUE, cache=TRUE)
-pacman::p_load(ggplot2)
+pacman::p_load(ggplot2, dplyr, Rfast)
 source('../clarkfunctions2020.R')
 Rcpp::sourceCpp('../cppFns.cpp')
 # any libraries and data here
@@ -39,20 +39,19 @@ Rcpp::sourceCpp('../cppFns.cpp')
 ```{r q1}
 #----------------------------------------------------------------------------
 ## EXERCISE 1
-```
-```{r}
 nt   <- 200                      #no. time intervals
 time <- c(1:nt)                  #sample times
 nm   <- 20                       #number of missing values
 wm   <- sort(sample(c(2:nt),nm)) #which are missing
-sig  <- c(1,3,5,7,9)                       #process err variance
+fullSig  <- c(1,3,5,7,9)                       #process err variance
 tau  <- c(10, 15, 20, 25, 30)                       #obs error variance
 x    <- matrix(rep(10,nt*5), nt,5)
 
 for (i in 1:5){  # simulate x with different sigma
-for(t in 2:nt) {
-  x[t,i] <- x[t-1,i] + rnorm(1,0,sqrt(sig[i]))
-}}
+  for(t in 2:nt) { 
+    x[t,i] <- x[t-1,i] + rnorm(1,0,sqrt(fullSig[i])) 
+  }
+}
 
 # calculate y with different tau while sigma = 5
 y <- matrix(rep(NA,nt*5), nt,5)
@@ -64,10 +63,22 @@ y[wm,] <- NA
 # 1. How do different values of sig and tau affect the behavior of x?
 # plot x with different sigma
 plot(time, x[,1], type = "l", ylim= c(min(x), max(x)), ylab= "x")
-color = c("black", "blue", "red", "orange", "grey")
-for(i in 2:5){
-  lines(time, x[,i], col = color[i])}
-legend("topleft", col = color, lty = c(1,1,1,1,1), legend = c("sigma = 1", "sigma = 3", "sigma = 5", "sigma = 7", "sigma = 9"))
+color <- c("black", "blue", "red", "orange", "grey")
+for(i in 2:5){ lines(time, x[,i], col = color[i]) }
+legend("topleft", col = color, lty = c(1,1,1,1,1), legend = paste('sigma =', fullSig))
+```
+
+```{r}
+inx <- c(1, 3, 5)
+sig <- fullSig[inx]
+color <- color[inx]
+L <- length(sig)
+par(mfrow=c(L,1), mar=c(2,4,1,3), bty='n')
+for(i in 1:L){
+  plot(time[-1], diff(x[,1]), type='l', col='white',
+       ylim=c(-5,5), ylab= "x", main=paste0("sigma=", sig[i]))
+  lines(time[-1], diff(x[,i]), col = color[i])
+}
 ```
 
 Our resuljts indicate that X with higher sigma fluctuates more. Since behaviour of y does not affect the behaviour of x, change of tau does not change the behaviour of x.
@@ -83,11 +94,10 @@ for( i in 1:5){   #simulate observations for x with sigma = 5
 y2[wm,] <- NA  
 
 
-require(Rfast)
-x_std <- Rfast::colVars(x,std=TRUE) 
-y_std_tau5 <- Rfast::colVars(na.omit(y2),std=TRUE) 
+x_std <- colVars(x,std=TRUE) 
+y_std_tau5 <- colVars(na.omit(y2),std=TRUE) 
 df <- as.matrix(rbind(x_std, y_std_tau5))
-y_std_sig5 <- Rfast::colVars(na.omit(y),std=TRUE) 
+y_std_sig5 <- colVars(na.omit(y),std=TRUE) 
 
 knitr::kable(df,col.names = c("sigma = 1", "sigma = 3", "sigma = 5", "sigma = 7", "sigma = 9"))
 
@@ -109,9 +119,8 @@ x400 <- simulate_x(400,5)
 x600 <- simulate_x(600,5)
 Xx <- cbind(x200, x400, x600)
 
-require(dplyr)
-Xx_std <- Rfast::colVars(Xx,std=TRUE) 
-Xx %>% diff() %>% Rfast::colVars(Xx,std=TRUE) -> Xxdiff_std
+Xx_std <- colVars(Xx,std=TRUE) 
+Xx %>% diff() %>% colVars(Xx,std=TRUE) -> Xxdiff_std
 df2 <- rbind(Xx_std,Xxdiff_std )
 knitr::kable(as.matrix(df2),col.names = c("t = 200", "t = 400", "t = 600"))
 ```
