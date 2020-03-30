@@ -1,0 +1,76 @@
+---
+title: "Homework N Responses"
+author: "(Nicholas Bruns), Zeyi Han, Shubhi Sharma, Margaret Swift"
+date: '`r Sys.Date()`'
+output:
+  prettydoc::html_pretty:
+    theme: architect
+    highlight: github
+---
+
+```{r setup, include=F}
+#----------------------------------------------------------------------------
+# LOADING
+knitr::opts_chunk$set(echo=FALSE, eval=TRUE, cache=FALSE)
+pacman::p_load(ggplot2)
+source('../clarkfunctions2020.R')
+Rcpp::sourceCpp('../cppFns.cpp')
+# any libraries and data here
+
+#----------------------------------------------------------------------------
+# FUNCTIONS
+# put functions here
+
+```
+
+
+## Exercise 1 {#q1}
+
+Exercise 1 here.
+
+```{r q1}
+#----------------------------------------------------------------------------
+## EXERCISE 1
+
+```
+
+
+## Exercise 2 {#q2}
+
+Exercise 2 here.
+
+```{r q2}
+#----------------------------------------------------------------------------
+## EXERCISE 2
+
+```
+
+
+## Exercise 3 {#q3}
+
+Exercise 3 here.
+
+```{r q3}
+#----------------------------------------------------------------------------
+## EXERCISE 3
+
+```
+
+
+## Exercise 4 {#q4}
+
+Exercise 4 here.
+
+```{r q4}
+#----------------------------------------------------------------------------
+## EXERCISE 4
+
+```
+
+
+## Appendix {#appendix}
+
+```{r ref.label=knitr::all_labels(), echo = T, eval = F}
+```
+
+

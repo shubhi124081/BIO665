@@ -1,0 +1,930 @@
+---
+title: "multivariate data and models"
+author: '[Jim Clark](http://sites.nicholas.duke.edu/clarklab/)'
+date: '`r Sys.Date()`'
+output:
+  html_document:
+    fig_caption: yes
+    toc: yes
+    toc_depth: 3
+  pdf_document:
+    toc: yes
+    toc_depth: '3'
+subtitle: env/bio 665 Bayesian inference for environmental models
+fontsize: 12pt
+urlcolor: blue
+---
+
+```{r setup, eval=F, echo=FALSE}
+# set global chunk options: 
+library(knitr)
+opts_chunk$set(cache=TRUE, autodep = TRUE)
+dep_auto()
+```
+
+
+```{r outform, echo=F}
+insertPlot <- function(file, caption){
+    outputFormat = knitr::opts_knit$get("rmarkdown.pandoc.to")
+  if(outputFormat == 'latex')
+    paste("![ ", caption, " ](", file, ")",sep="")
+}
+bigskip <- function(){
+  outputFormat = knitr::opts_knit$get("rmarkdown.pandoc.to")
+  if(outputFormat == 'latex')
+    "\\bigskip"
+  else
+    "<br>"
+}
+```
+
+```{r colfmt, echo=F}
+ebreak <- "--------------------------- ===== ---------------------------"
+makeSpace <- function(){
+  outputFormat = knitr::opts_knit$get("rmarkdown.pandoc.to")
+  if(outputFormat == 'latex')
+    "\\bigskip"
+  else if(outputFormat == 'html')
+    "<br>"
+  else
+    "<br>"
+}
+colFmt = function(x,color){
+  outputFormat = knitr::opts_knit$get("rmarkdown.pandoc.to")
+  if(outputFormat == 'latex')
+    paste("\\textcolor{",color,"}{",x,"}",sep="")
+  else if(outputFormat == 'html')
+    paste("<font color='",color,"'>",x,"</font>",sep="")
+  else
+    x
+}
+```
+
+
+`r makeSpace()`
+  
+# resources
+
+## data file
+
+`BBSeast.Rdata`
+
+## software
+
+*  Rstudio
+```{r clarkFunctions, message=FALSE, cache=FALSE}
+source('../clarkFunctions2020.r')
+```
+
+
+## readings
+
+Brynjarsdottir, J. and A.E. Gelfand. 2014. Collective sensitivity analysis for ecological regression models with multivariate response. *Journal of Biological, Environmental, and Agricultural Statistics* 19, 481-502.
+
+Chib, S and E Greenberg. 1998. Analysis of multivariate probit models. *Biometrika* 85, 347-361.
+
+Clark, JS, D Nemergut, B Seyednasrollah, P Turner, and S Zhang. 2017. Generalized joint attribute modeling for biodiversity analysis: Median-zero, multivariate, multifarious data, *Ecological Monographs* 87, 34–56.
+
+# objectives
+
+* understand correlation structure and a joint distribution of responses
+
+* execute and interpret a multivariate model
+
+`r makeSpace()`
+
+# overview of multivariate models and data
+
+Multivariate modeling in environmental science has transititioned from descriptive to inferential.  Descriptive methods have been popular for decades, most of which attempt to extract low-dimensional pattern from high-dimensional data. These methods tend to be algorithmic rather than model-based. For example, **principal components analysis (PCA)** concentrates covariance into a new set of orthogonal (uncorrelated) axes. Each axis is selected to maximize the residual information. There is one axis for each of the dimensions in the original data, but structured such that most information is contained in a few. Related descriptive methods are factor analysis, correspondence analysis, multidimensional scaling, discriminant analysis, and cluster analysis.  There is a huge literature on these important tools for EDA.
+
+Because Bayesian analysis is based on a model, I focus here on multivariate models that can be used to draw inference. The distributions I consider are:
+
+- multivariate normal: a likelihood for continous responses and a prior distribution for regression coefficients; this is generalization of the normal distribution for univariate responses
+
+- inverse Wishart: a prior distribution for the covariance matrix; this is generalization of the inverse gamma distribution for univariate responses
+
+- multinomial distribution: a likelihood for discrete responses; this is generalization of the binomial distribution for univariate responses
+
+- categorical distribution: a likelihood for discrete responses when the number of trials is 1; this is a special case of the multinomial and a generalization of the Bernoulli distribiution for a univariate response
+
+
+`r makeSpace()`
+
+# a simple example
+
+Multivariate data are jointly distributed.  Each observed response is a vector.  They are not modeled independently, because the likelihood must capture the covariance between them, particularly if they interact in some way.  For example, consider a continous response variable modeled as a (univariate) regression,
+
+$$y_i|\mathbf{x}_i \sim N(\mathbf{x}'_i\boldsymbol{\beta},\sigma^2)$$
+When a second response variable is measured at the same time/location, call it $j$, the analyst might fit a regression model,
+
+$$y_{ij}|\mathbf{x}_i \sim N(\mathbf{x}'_i\boldsymbol{\beta}_j,\sigma^2_j)$$
+where $j$ can be response 1 or response 2, and $\mathbf{x}_i$ and $\boldsymbol{\beta}_j$ are length-$Q$ vectors.
+
+Note that the two variables can be viewed as part of the same response, $\mathbf{y}_i = c(y_{i1}, y_{i2})$.  The two regressions could be collapsed into a single multivariate equation,
+
+$$\mathbf{y}_i|\mathbf{x}_i \sim MVN(\boldsymbol{\beta} \mathbf{x}_i,\boldsymbol{\Sigma}) $$
+where $\boldsymbol{\beta}$ is now a $2 \times Q$ matrix, and the covariance matrix assumes independence,
+
+$$
+\Sigma = 
+\begin{pmatrix}
+\ \sigma_1^2 & 0 \\
+\ 0 & \sigma_2^2
+\end{pmatrix}
+$$
+
+I have not actually changed anything, because the two responses do not interact. I know this because the covariance is zero.  To convince myself of this fact, I do a simple experiment.
+
+## empirical versus residual correlation
+
+I simulate three data sets independently,
+
+```{r, eval=T}
+n <- 100                                  # sample size
+Q <- 4                                    # predictors
+x <- matrix( rnorm(n*Q), n, Q)            # design
+x[, 1] <- 1
+beta1 <- matrix( rnorm(Q), Q)             # coefficients
+beta2 <- matrix( rnorm(Q), Q)             
+beta3 <- matrix( rnorm(Q), Q)     
+sigma <- 1                                # variances
+y1 <- rnorm(n, x%*%beta1, sqrt(sigma))    # responses
+y2 <- rnorm(n, x%*%beta2, sqrt(sigma))   
+y3 <- rnorm(n, x%*%beta3, sqrt(sigma)) 
+res <- cbind(y1 - x%*%beta1, y2 - x%*%beta2, y3 - x%*%beta3) #residuals
+
+cor(cbind(y1, y2, y3)) # empirical correlation
+cor(res)               # residual correlation
+```
+
+Notice that `y1`, `y2`, `y3` can show substantial correlation, despite having been simulated independently--for one thing, they both depend on `x`.  Second, when the mean structure is removed, the correlation declines substantially.  This is a  "residual correlation".
+
+There are two points here.  First, correlated responses do not need to be modeled jointly solely because they are correlated.  If the mean structure of the model takes up the correlation structure, then independent models are fine.  Second, even if two responses have residual correlation (the mean structure does not remove the correlation), we may still consider modeling them independently if we believe they have nothing to do with one another.  In other words, there is no reason to expect that the correlation in this data set translates out-of-sample--we view it as unrelated to the fact that they were observed together.
+
+Having said this, if there is residual correlation, and we have reason to expect dependence, then independent modeling will yield incorrect estimates of coefficients, and it will preclude examination of indirect effects.  
+
+## a simple MVN model
+
+To examine the impact of ignoring the joint structure, I repeat the previous experiment, now with dependence, showing just two responses,
+
+$$
+\Sigma = 
+\begin{pmatrix}
+\ \sigma_1^2 & \sigma_{12}^2 \\
+\ \sigma_{21}^2 & \sigma_2^2
+\end{pmatrix}
+$$
+where $\sigma_{12}^2 = \sigma_{21}^2 = \rho_{12} \sigma_{1} \sigma_{2}$, with $\rho_{12}$ being the correlation.  I want to know how the non-zero covariances affect estimates, so I use simulation.
+
+### simulating a MVN data set
+
+Now I simulate the three responses jointly,
+```{r, eval=T}
+beta <- cbind(beta1, beta2, beta3)          # coefficient matrix
+S    <- ncol(beta)
+Q    <- nrow(beta)
+
+Sigma <- cov( .rMVN(5, 0, diag(S) ) ) # a fast covariance matrix
+
+xnames <- paste('x',1:Q,sep='')          # label everything
+ynames <- paste('y',1:S,sep='')
+rownames(beta) <- colnames(x) <- xnames
+colnames(beta) <- rownames(Sigma) <- colnames(Sigma) <- ynames
+
+y  <- x%*%beta + .rMVN(n, 0, Sigma)
+
+par(mfrow=c(1,2))
+plot( y, (x%*%beta), xlab='observed', ylab='predicted' )
+```
+
+Look at each of the objects generated by this code.
+
+One thing to note here is the generation of the covariance matrix. Unlike an empirical covariance matrix, a model covariance matrix must be not only symmetric but also *positive definite* or *full rank*.  This insures that it can be inverted, i.e., there is a solution to $\Sigma^{-1}$.  So I cannot arbitrarily construct a symmetric matrix and assume it will be full rank.  I have only $S = 3$ responses here, but there could be 100 responses.  The easiest way to do this is simply draw random data and take the covariance.  Provided the number of samples exceeds the number of response variables (i.e., $n=5$ in this example > $S = 3$), it will be full rank.  I now have a simulated data set.
+
+Here are the estimates I would obtain if I modeled them independently:
+
+```{r, eval=T}
+bhat <- numeric(0)
+for(s in 1:S){
+  tmp <- summary( lm(y[,s] ~ x[,-1]) )$coefficients[,1:2]
+  bhat <- rbind(bhat,tmp)
+}
+blo <- bhat[,1] - 1.96*bhat[,2]
+bhi <- bhat[,1] + 1.96*bhat[,2]
+
+plot(beta, bhat[,1], ylim = range(c(blo,bhi)))
+segments(beta, blo, beta, bhi)
+abline(0,1)
+```
+
+The point estimates for coefficients are ok, but their standard errors are not.  To see this I estimate coefficients for the multivariate model.
+
+###fitting MVN data
+
+Just as with the univariate model, I can fit the multivariate model with Gibbs sampling.  The big change is the fact that I must now sample coefficients as a matrix of values ($S \times Q$), and the parameter $\sigma^2$ is replaced with a covariance matrix.  The prior distribution is multivariate normal for the coefficients and non-informative for the covariance,
+
+
+$$
+MVN(vec(\boldsymbol{\beta}) | 0, \Sigma \otimes \mathbf{C}) \times |\Sigma|^{-(S + 2)/2}
+$$
+The new notation here is the $vec(\cdot)$ operator and the Kronecker product $\otimes$.  The $vec(\boldsymbol{\beta})$ operation takes the $S \times Q$ matrix $\boldsymbol{\beta}$ and stacks the columns into a length-$SQ$ vector.  Of course, this requires a $SQ \times SQ$ covariance matrix.  The Kronecker product generates a block-diagonal matrix, where there are $S$ blocks ($\Sigma$ is $S \times S$), each of which is a $Q \times Q$ matrix ($\mathbf{C}$ is $Q \times Q$).  If I label the blocks from 1 to $S$, then block $(s, s')$ is $\Sigma_{ss'}\mathbf{C}$.  This is a type of *separable matrix*, which means that every element of $\mathbf{C}$ in block $(s, s')$ is multiplied by the same scalar value (one element of $\Sigma$).  In other words this species $\times$ covariate covariance matrix has no interactions between species and covariates *a priori*--there will be interactions *a posteriori*.
+
+I take the prior covariance $\mathbf{C}$ to be non-informative.
+
+Gibbs sampling is all direct from conditional posterior distributions.  First I mention the inverse **inverse Wishart distribution**.  The prior distribution for the covariance matrix $|\Sigma|^{-(S + 2)/2}$ is conjugate with the $MVN$ likelihood.  The conditional posterior distribution is also inverse Wishart.  This distribution takes as arguments a prior covariance matrix having the same dimensions as $\Sigma$, and *degrees of freedom*, which must be larger than $S + 1$.  The larger the degrees of freedoem, the more informative (more weight on prior). The conditional posteriors are admittedly ugly, but direct sampling is worth the math:
+
+$$
+\begin{aligned}
+ vec(\boldsymbol{\beta}) & \sim & MVN\left( (\mathbf{X}'\mathbf{X})^{-1}\mathbf{X}'\mathbf{Y}, \Sigma \otimes (\mathbf{X}'\mathbf{X})^{-1} \right) \\
+ \Sigma & \sim & IW( n - Q + S - 1,\mathbf{Y}' \mathbf{D} \mathbf{Y} ) 
+\end{aligned}
+$$
+where $\mathbf{D} = \mathbf{I}_n - \mathbf{X}(\mathbf{X}'\mathbf{X})^{-1}\mathbf{X}'$.
+
+To do this as a single multivariate regression I write a Gibbs sampler:
+
+```{r, eval=T}
+bg <- beta*0
+sg <- Sigma*0
+
+rownames(bg) <- colnames(x) <- xnames
+colnames(bg) <- rownames(sg) <- colnames(sg) <- ynames
+  
+ng <- 2000                        # setup Gibbs sampler
+bgibbs <- matrix(0,ng,S*Q)
+sgibbs <- matrix(0,ng,S*S)
+predy  <- matrix(0,ng,S*n)        # predict the data
+
+colnames(bgibbs) <- as.vector( outer(xnames,ynames,paste,sep='_') )
+colnames(sgibbs) <- as.vector( outer(ynames,ynames,paste,sep='_') )
+
+IXX <- solve(crossprod(x))       # only do this once
+df  <- n - Q + S - 1             # Wishart 
+
+for(g in 1:ng){
+  
+  bg <- .updateBetaMVN(x,y,sg)
+  sg <- .updateWishart(x, y, df, beta=bg, IXX=IXX)$sigma
+ 
+  sgibbs[g,] <- sg
+  bgibbs[g,] <- bg
+  
+  predy[g,] <- as.vector( .rMVN(n,x%*%bg,sg) )  # predicted y
+}
+```
+
+Here are some plots of estimates and predictions:
+
+```{r, eval=T}
+par(mfrow=c(2,2), mar=c(4,4,1,1))
+bmu <- colMeans(bgibbs)
+bci <- apply(bgibbs, 2, quantile, c(.025,.975))
+plot(as.vector(beta),bmu, xlab='true beta', ylab='estimate')
+segments(as.vector(beta), bci[1,], as.vector(beta), bci[2,])
+abline(0,1)
+
+smu <- colMeans(sgibbs)
+sci <- apply(sgibbs, 2, quantile, c(.025,.975))
+plot(as.vector(Sigma),smu, xlab='true Sigma', ylab='')
+segments(as.vector(Sigma), sci[1,], as.vector(Sigma), sci[2,])
+abline(0,1)
+
+ymu <- matrix( colMeans(predy),n,S )
+plot(y,ymu)
+abline(0,1)
+yci <- apply(predy, 2, quantile, c(.025,.975))
+segments(as.vector(y), yci[1,], as.vector(y), yci[2,])
+```
+
+This analysis can be done compactly in `gjam`:
+
+```{r, eval=T}
+library(gjam)
+ml   <- list(ng = 2000, burnin = 500, typeNames = 'CON')
+form <- as.formula(~ x2 + x3 + x4)
+out  <- gjam(form, data.frame(x), y, modelList = ml)
+summary(out)
+
+# repeat with ng = 5000, burnin = 500, then plot data:
+trueValues <- list(sigma = Sigma, beta = beta, corSpec = cov2cor(Sigma))
+pl  <- list(trueValues = trueValues)
+gjamPlot(out, plotPars = pl)
+
+```
+
+Here is a comparison of coefficients from the univariate model and gjam:
+
+```{r, eval=T}
+
+Q <- 4 # intercept plus three predictors
+betaMu <- out$parameters$betaMu
+betaSe <- matrix(out$parameters$betaTable[,2], Q, S)
+
+bUniMu <- matrix(bhat[,1], Q, S)
+bUniSe <- matrix(bhat[,2], Q, S)
+
+par(mfrow=c(S,2),bty='n',mar=c(4,4,1,1))
+for(j in 1:S){
+  plot(betaMu[,j], bUniMu[,j], pch=15); abline(0,1,lty=2)
+  plot(betaSe[,j], bUniSe[,j], pch=15); abline(0,1,lty=2)
+}
+```
+
+The mean estimates are ok (left side), but the standard errors are not (right side). Why does the univariate model fail to generate reasonable estimates?  Recall the conditional posterior for the univariate model has a contributioh from the likelihood to the covariance
+
+$$
+Var(\mathbf{\beta})|\sigma^2 = \frac{1}{\sigma^2}(\mathbf{X}'\mathbf{X})^{-1}
+$$
+For the multivariate model it changes to 
+
+
+$$
+Var(vec(\mathbf{\beta}))|\Sigma = \Sigma \otimes (\mathbf{X}'\mathbf{X})^{-1}
+$$
+This conditional relationship reveals an important role for the covariance, directly affecting uncertainty of coefficients.
+
+
+`r colFmt('Exercise 1.','blue')`  Conduct simlation experiments to determine how sample size and number of response variables affects estimates of the coefficients and covariance matrix
+
+
+# discrete data
+
+Multivariate discrete observations are typically modeled with a **multinomial**, or its special case for a single trial, the **categorical** distribution.  A multinomial distribution might be used to decribe eye color in members of our class (say, $n = 15$),
+
+$$\mathbf{y}_i \sim multinom(n, [\theta_{i1}, \dots, \theta_{iS}]$$
+In this case, $\mathbf{y}_i$ is a length-$S$ vector of counts (e.g., for number of brown, blue, green) that sum to $n$, with a corresponding length-$S$ vector of probabilities $\boldsymbol{\theta}_i$ that sum to 1. A categorical distribution might be used to describe the eye color of one individual selected at random from the class. 
+
+There are a number of important methods built on the multinomial,including multinomial logit and probit models. There are Bayesian implementations of these methods that are worth consideration when data are discrete.  
+
+There are three reasons why I turn immediately to an alternative approach. First, is the issue of covariance.  Just as in the continuous case, discrete data can have correlation in outcomes. However, unlike the multivariate normal distribution, which has a covariance matrix, the multinomial distribution has only a probability vector. In other words, the distribution itself imposes the covariance in outcomes. The variance in outcome $s$ is $n \theta_s (1 - \theta_s)$. The covariance between outcomes $s$ and $s'$ is $-n \theta_s \theta_{s'}$.  The negative covariance is imposed due to the compositional nature of the data--the $y_{is}$ sum to $n$, so increasing any one tends to decrease others. Multinomial data are also called **composition data**. I call this a disadvantage because, regardless of whether or not two microbial taxa tend to occur together, the multinomial distribution used for count data will impose negative covariance.
+
+A second limitation comes from the difficulty interpreting models fitted when a non-linear link function is used to model count data with a continuous intensity or probability model.  Non-linear link functions are used in GLMs to insure that positive intensity or $[0, 1]$ probability.  The problem comes from interpreting coefficients (and covariances) on these non-linear scales.  For example, the covariance fitted on a non-linear scale is not a covariance between outcomes on the observation scale.
+
+A third reason I tend not to use models based on the multinomial comes from the fact that data commonly consist of combinations of continuous and discrete variables. In social sciences, a response could consist of income (continuous) and political party (discrete). In the health sciences, coronavirus sypmtoms an be discrete (cough, tiredness, difficulty breathing) and continous (fever). 
+
+Real data tend to be more complicated than simply continuous versus discrete. In ecology, observations on plant health can include nomimal classes for herbivore damage, ordinal classes from abundance, or combinations of continuous and discrete in the same variable: discrete zero or detection limit for chemical constituents, continuous positive values, discrete maximum detection. 
+`gjam` was developed (partly in this class) to address the common problems I typically encounter with multivariate data.  These issues are summarized in the next section.
+
+
+# `gjam` for multivariate data
+
+
+Generalized Joint Attribute Modelling [gjam](https://esajournals.onlinelibrary.wiley.com/doi/10.1002/ecm.1241) models multivariate responses that can be combinations of discrete and continuous variables, where interpretation is needed on the observation scale. It was motivated by the challenges of modeling distribution and abundance of multiple species, so-called joint species distribution models (JSDMs).  Because the different attributes that make up a multivariate response are often recorded on many different scales and with different levels of sampling effort, analyses often default to the least informative common-denominator, binary or 'presence-absence'.  
+
+Combining species and other attributes in a single analysis is challenging because some species groups are counted.  Some may be continuous cover values or basal area.  Some may be recorded in ordinal bins, such as 'rare', 'moderate', and 'abundant'.  Others may be presence-absence.  Some are composition data, either fractional (continuous on (0, 1)) or counts (e.g., molecular and fossil pollen data).  Attributes such as body condition, infection status, and herbivore damage are often included in field data.  `gjam` accommodate multifarious observations.
+
+As we saw in the previous section, a covariance matrix allows us to see the relationships between responses that are left after we remove the mean structure.  For a simple linear model this is easy, because the reponses are real numbers on $(-\infty, \infty)$.  We cannot do this with counts unless we impose a non-linear link function, e.g., the link functions used in GLMs.  The problem with this is that the coefficients no longer have a simple interpretation.  For example, the covariance matrix is not the covariance between species, but rather a non-linear transformation of them.
+
+To allow transparent interpretation `gjam` avoids non-linear link functions.  This is a departure from generalized linear models (GLMs) and most hierarchical Bayes models.  
+
+## censoring and observation effort
+
+In `gjam`, the integration of discrete and continuous data on the observed scales makes use of *censoring*.  Censoring extends a model for continuous variables across censored intervals.  Continuous observations are uncensored.  The Tobit model is an example of censoring for discrete zeros.  Censored observations are discrete and can depend on sample effort.  
+
+
+![[The partition for discrete data in one dimension](https://esajournals.onlinelibrary.wiley.com/doi/10.1002/ecm.1241)](figS1.png)
+
+
+
+Censoring is used with the *effort* for an observation to combine continuous and discrete variables with appropriate weight.  In count data, effort is determined by the size of the sample plot, search time, or both.  It is comparable to the offset in GLMs. In count composition data (e.g., microbiome, fossil pollen), effort is the total count taken over all species.  In `gjam`, discrete observations can be viewed as censored versions of an underlying continuous space.
+
+## the partition and sample effort
+
+`gjam` achieves effort-based weighting through a partition of the continuous scale.  Where effort $E = 1$, the partition for discrete counts $0, 1, 2, \dots$ begin at $-\infty$, followed by midpoints between count values, $\mathbf{p} = (-\infty, 1/2, 3/2, \dots)$.  For $\mathbf{z}_{is} = k$ the interval is thus $(p_{i,k}, p_{i,k+1}] = (k - 1/2, k + 1/2]$.  When effort varies between observations the partition shifts to the 'effort scale', 
+
+\begin{equation}
+\label{eqn:pik}
+\mathbf{p}_{ik} = \left(\frac{k - 1/2}{E_{i}}, \frac{k + 1/2}{E_{i}}\right]
+\end{equation}
+If observations are animals counted per hour, $E_i$ can be search time.  If observations are benthic organisms per sediment core, $E_i$ can be core volume.  If observations are seedlings per plot, then $E_i$ can be the area of plot $i$.  Because plots have different areas one might choose to model $w_{is}$ on a 'per-area' scale (density) rather than a 'per-plot' scale. 
+
+## model summary
+
+An observation consists of environmental variables and species attributes, $\lbrace \mathbf{x}_{i}, \mathbf{y}_{i}\rbrace$, $i = 1,..., n$.  The vector $\mathbf{x}_{i}$ contains predictors $x_{iq}: q = 1,..., Q$. The vector $\mathbf{y}_{i}$ contains attributes (responses), such as species abundance, presence-absence, and so forth, $y_{is}: s = 1,..., S$.  The effort $E_{is}$ invested to obtain the observation of response $s$ at location $i$ can affect the observation. The combinations of continuous and discrete measurements in observed $\mathbf{y}_{i}$ motivate the three elements of `gjam`. 
+
+A length-$S$ vector $\mathbf{w}_{i}\in{\Re}^S$ represents response $\mathbf{y}_i$ in continuous space.  This continuous space allows for the dependence structure with a covariance matrix.  An element $w_{is}$ can be known (e.g., continuous response $y_{is}$) or unknown (e.g., discrete responses).
+
+A length-$S$ vector of integers $\mathbf{z}_{i}$ labels $\mathbf{y}_i$ in discrete space.  Each observed $y_{is}$ is assigned to an interval $z_{is} \in \{0,...,K_{is}\}$.  The number of intervals $K_{is}$ can differ between observations and between species, because each species can be observed in different ways.
+
+The partition of continuous space at points $p_{is,z} \in{\mathcal{P}}$ defines discrete intervals $z_{is}$.  Two values $(p_{is,k}, p_{is,k+1}]$ bound the $k^{th}$ interval of $s$ in observation $i$.  Intervals are contiguous and provide support over the real line $(-\infty, \infty)$.  For discrete observations, $k$ is a censored interval, and $w_{is}$ is a latent variable.  The set of censored intervals is $\mathcal{C}$.  The partition set $\mathcal{P}$ can include both known (discrete counts, including composition data) and unknown (ordinal, categorical) points.  
+
+An observation $y$ maps to $w$,
+
+$$y_{is} = \left \{
+\begin{matrix}
+\ w_{is} & & continuous\\
+\ z_{is} & w_{is} \in (p_{z_{is}}, p_{z_{is} + 1}] & discrete
+\end{matrix}
+\right.$$
+
+
+Effort $E_{is}$ affects the partition for discrete data as discussed above.  For the simple case where there is no error in the assignment of discrete intervals, $\mathbf{z}_i$ is known, and the model for $\mathbf{w}_i$ is
+
+$$\mathbf{w}_i|\mathbf{x}_i, \mathbf{y}_i, \mathbf{E}_i \sim MVN(\boldsymbol{\mu}_i,\boldsymbol{\Sigma}) \times \prod_{s=1}^S\mathcal{I}_{is}$$
+$$\boldsymbol{\mu}_i = \mathbf{B}'\mathbf{x}_i$$
+$$\mathcal{I}_{is} = \prod_{k \in \mathcal{C}}I_{is,k}^{I(y_{is} = k)} (1 - I_{is,k})^{I(y_{is} \neq k)}$$
+
+where $I_{is} =I(p_{z_{is}} < w_{is} < p_{z_{is} + 1}]$, $\mathcal{C}$ is the set of discrete intervals, $\mathbf{B}$ is a $Q \times S$ matrix of coefficients, and $\boldsymbol{\Sigma}$ is a $S \times S$ covariance matrix. There is a correlation matrix associated with $\boldsymbol{\Sigma}$,  
+
+$$\mathbf{R}_{s,s'} = \frac{\boldsymbol{\Sigma}_{s,s'}}{\sqrt{\boldsymbol{\Sigma}_{s,s} \boldsymbol{\Sigma}_{s',s'}}}$$
+Disadvantages of models based on the multinomial or GLMs are fixed here.  First, there is a covariance $\Sigma$ fitted to data--a fixed covariance is not imposed by the multinomial distribution.  Second, the scale is easily interpreted.  If effort is omitted ($E = 1$), then coefficients and covariance are interpreted on the observation scale (e.g., per plot, per interval). If effort is included, the scale is 'per effort' (e.g., per hectare, per minute).  Coefficients and covariance are interpreted on this scale.  Finally, the different data types are combined.  For biodiversity, where birds come from point counts, plants from fixed-area plots, microbes from sequencing, and mammals from live traps, there is a model that combines them. In the next section I summarize the main data types.
+
+## data types
+
+$\emph{Continuous abundance}$ (CA) data can be concentration, biomass, density, basal area, leaf area, cover, and so on, all of which are continuous above zero, but have discrete zero.
+
+
+**Table 1. Partition for each data type**
+
+`typeNames` | Type  | Obs values | Default partition | Comments
+:----: | :-------: | :----------: | :----------------------------: | -----------------
+`'CON'`  | continuous, uncensored | $(-\infty, \infty)$ | none | e.g., centered, standardized
+`'CA'`  | continuous abundance | $[0, \infty)$ | $(-\infty, 0, \infty)$ | with zeros
+`'DA'`  | discrete abundance | $\{0, 1, 2, \dots \}$ | $(-\infty, \frac{1}{2E_{i}}, \frac{3}{2E_{i}}, \dots , \frac{max_s(y_{is}) - 1/2}{E_i}, \infty)^1$ | e.g., count data
+`'PA'` | presence- absence | $\{0, 1\}$ | $(-\infty, 0, \infty)$ | unit variance scale
+`'OC'` | ordinal counts | $\{0, 1, 2, \dots , K \}$ | $(-\infty, 0, estimates, \infty)$ | unit variance scale, imputed partition
+`'FC'` | fractional composition | $[0, 1]$ | $(-\infty, 0, 1, \infty)$ | relative abundance
+`'CC'` | count composition | $\{0, 1, 2, \dots \}$ | $(-\infty, \frac{1}{2E_{i}}, \frac{3}{2E_{i}}, \dots , 1 - \frac{1}{2E_i}, \infty)^1$ | relative abundance counts
+`'CAT'` | categorical | $\{0, 1\}$ | $(-\infty, max_{k}(0, w_{is,k}), \infty)^2$ | unit variance, multiple levels
+
+
+$\emph{Discrete abundance}$ (DA) data arise from counts, which are often not well described by standard distributions, such as the Poisson or the negative binomial, and perform poorly when zeros are common.  The multinomial distribution induces a negative covariance.  When the total count in the multinomial distribution is related to abundance a separate model is needed for this total.   By treating observed counts as a censored version of true abundance `gjam` accommodates effort, and parameters can be interpreted on the observation scale or the effort scale. 
+
+$\emph{Presence-absence}$ (PA) data include only two categories, $\{0, 1\}$.  The multivariate probit model of Chib and Greenberg (1998) is a special case of `gjam` for PA data, where both intervals are censored.  
+
+$\emph{Ordinal count}$ (OC) data are collected where abundance must be evaluated rapidly, where precise measurements are difficult, or absolute scales are difficult to apply.  Because there is no absolute scale the partition must be inferred. Consider the ordinal scale represented by these labels: (absent, rare, intermediate, abundant).  The sample partition is  $\mathbf{p}_{s} = (-\infty, 0, p_{s,2},p_{s,3}, \infty)$, where elements 2 and 3 are estimated.  The zero anchors location, and unit variance imposes a scale. 
+
+$\emph{Composition data}$ may be continuous fractions with a sum-to-one constraint (fractional composition) or discrete counts. Both have interpretation on the relative abundance $[0,1]$ scale, and both require point mass at zero and one.  Due to the sum-to-one (fractional composition) or sum-to-$E_i$ (count composition) constraint, there is information on only $S - 1$ columns in $\mathbf{Y}$.  
+
+$\emph{Composition-count}$ (CC) data are composition data reported as numbers of each species counted.  Composition counts are only meaningful in a relative sense; they provide no information on absolute abundance.  The total count for a sample is the effort $E_i = \sum_{s}{y_{is}}$. Common examples include molecular sequence data, paleoecology, and fungal assays. In paleoecology total counts can differ widely between observations (www.neotomadb.org). The number of DNA sequence reads in microbiome data can range over orders of magnitude. A practice that is widespread in the microbiome community rarifies count data to achieve approximate equity between samples.  This amounts to a massive manipulation of data that can throw away vast amounts of information.  Alternative model-based approaches applied to counts are limited to single taxa.  A multinomial model with second-stage covariance is not on the data scale.  Moreover, dominance of zeros in microbiome data limits application of most approaches.
+
+`gjam` accommodates the discrete observations and the underlying relative abundance scale. A sample count can take values $y_{is} \in \{0,1, 2, \dots \}$, with $E_i$ being the total count for sample $i$.  The partition segments the $[0, 1]$ composition scale according to effort and allowing for zeros.  Small samples have wide bins and, thus, high variance and low weight.  
+
+$\emph{Fractional composition}$ (FC) data arise in many ways, examples including the fraction of a photoplot or remotely sensed image occupied by each species or cover type.  It can be the fraction of leaves lost to different types of herbivory or stream or foliar chemistry. The correlations between responses are distorted when estimated on the multivariate logit scale.  Still more problematic, the logit scale does not admit zeros, which are common in composition data.  In GJAM a FC observation is represented in continuous space and censored at 0 (absent species) and 1 (monoculture).
+
+A sample may have *multiple composition groups*.  For example, $\mathbf{Y}$ may include both soil and endophytic microbiome data, each with its own total count (effort).  Let $G$ be the number of composition groups.  If there are $L_g$ response variables for a given FC or CC group $g$, then there are $L_g - 1$ non-redundant columns in $\mathbf{Y}$ for group $g$.   A sample includes information on the total number of non-redundant columns, $S = \sum_g L_g - G$.  A link function provides support over the real line for composition data, while providing estimates on the observation scale (Appendix S1).
+
+$\emph{Categorical data}$ (CAT) describe unordered categories.  If observation $i$ refers to a sample plot, and the response $s$ is a cover-type variable, then it might be assigned to one of several categories $k$, such as 'tidal flat', 'low marsh', or 'high marsh'.  If it refers to a sample plant, and a response is growth habit, it might be assigned one of four categories 'herb', 'graminoid', 'shrub', or 'tree'.  These are multinomial responses.  Like composition data, a categorical response $s$ occupies as many columns in $\mathbf{Y}$ as there are non-redundant levels $K_s - 1$, because the $K_s$ columns sum to 1.  The observed category is that having the largest value of $w_{is,k}$ for response $s$.   
+
+
+
+## implementing `gjam`
+
+The different types of data that can be included in the model are summarized in Table 1, assigned to the `character` variable `typeNames` that is included in the `modelList` passed to `gjam`:
+
+
+
+### simulated data
+
+Consider a sample of size $n = 500$ for $S = 10$ species and $Q = 4$ predictors.  To indicate that all species are *continuous abundance* data I specify `typeNames` as `'CA'`: 
+
+```{r simulate CA, eval = F}
+library(gjam)
+f <- gjamSimData(n = 500, S = 10, Q = 4, typeNames = 'CA')
+summary(f)
+```
+
+The object `f` includes elements needed to analyze the simulated data set.  `f$typeNames` is a length-$S$ `character vector`. The `formula` follows standard R syntax. It does not start with `y ~`, because gjam is multivariate. The multivariate response is supplied as a $n \times S$ `matrix` or `data.frame ydata`.  Here is the `formula` for this example:
+
+```{r show formula, eval = F}
+f$formula
+```
+
+The simulated parameter values are returned from `gjamSimData` in the list `f$trueValues`
+
+The predictors are held in a $n \times Q$ `data.frame xdata`.  The responses are a $n \times S$ matrix `ydata`.  
+
+
+
+```{r plotSimY, fig.show = "hold", fig.width = 6.5, eval = F}
+par(bty = 'n', mfrow = c(1,2), family='')
+h <- hist(c(-1,f$y), nclass = 50, plot = F)
+plot(h$counts,h$mids, type = 's', xlab='count', ylab='abundance')
+plot(f$w,f$y,cex = .2, xlab='w', ylab='y')
+```
+
+`r insertPlot("plotSimY.JPEG", "A histogram of observed y (left) and plotted against latent w (right)." )`
+
+
+Here is a short Gibbs sampler to estimate parameters and fit the data. The function `gjam` needs the `formula` for the model, the `data.frame xdata`, which includes the predictors, the response `matrix` or `data.frame ydata`, and a `modelList` specifying number of Gibbs steps `ng`, the `burnin`, and `typeNames`.
+
+```{r fit CA data, eval = F}
+ml  <- list(ng = 1000, burnin = 100, typeNames = f$typeNames)
+out <- gjam(f$formula, f$xdata, f$ydata, modelList = ml)
+summary(out)
+```
+
+The `print` function also works:
+
+```{r printG, eval=F}
+print(out)
+```
+
+Among the objects to consider initially are the design matrix `out$inputs$x`, response matrix `out$inputs$y`, and the MCMC `out$chains` with these names and sizes:
+
+```{r summary of chains, eval = F}
+summary(out$chains)
+```
+
+`$chains` is a list of matrices, each with `ng` rows and as many columns as needed to hold parameter estimates.  For example, each row of `$chains$bgibbs` is a length-$QS$ vector of values for the $Q \times S$ matrix $\mathbf{B}$, standardized for $\mathbf{X}$. In other words, a coefficient $\mathbf{B}_{qs}$ has the units of $w_s$.  `$chains$sgibbs` holds either the $S(S + 1)/2$ unique values of $\boldsymbol{\Sigma}$ or the $N \times r$ unique values of the dimension reduced covariance matrix.   
+
+Additional summaries are available in the list `inputs`:
+
+```{r summary of fitted model, eval = FALSE}
+summary(out$inputs)
+```
+  
+The matrix `classBySpec` shows the number of observations in each interval.  For this example of continuous data censored at zero, the two labels are $k \in \{0, 1\}$ corresponding to the intervals $(p_{s,0}, p_{s,1}] = (-\infty,0]$ and $(p_{s,1}, p_{s,2}) = (0, \infty)$.  The length-$(K + 1)$ partition vector is the same for all species, $\mathbf{p} = (-\infty, 0, \infty)$.  Here is `classBySpec` for this example:
+
+```{r show classes, eval = F}
+out$inputs$classBySpec
+```
+
+The first interval is censored (all values of $y_{is}$ = 0).  The second interval is not censored ($y_{is} = w_{is}$).
+
+The fitted coefficients in `$parameters`, as summarized in Table 2.  For example, here is posterior mean estimate of unstandardized coefficients $\mathbf{B}_u$,
+
+```{r betaMu, eval=F}
+out$parameters$betaMu
+
+out$parameters$betaTable
+```
+
+
+`r insertPlot("CA_richness.JPEG", "Species richness and diversity across all observations.  The distribution of observed values is shown as a histogram. This plot is generated as the file richness.pdf when plotPars$SAVEPLOTS = T is passed to gjamPlot." )`
+
+`r insertPlot("CA_pars.JPEG", "Parameter estimates plotted against true values." )`
+
+
+The data are also predicted in `gjam`, summarized by predictive means and standard errors.  These are contained in $n \times Q$ matrices `$prediction$xpredMu` and `$prediction$xpredSd` and $n \times S$ matrices `$prediction$ypredMu` and `$prediction$ypredSd`.  These are in-sample predictions.
+
+The output can be viewed with the function `gjamPlot`:  
+
+```{r plot CA data, family='', eval = FALSE}
+f   <- gjamSimData(n = 500, S = 10, typeNames = 'CA')
+ml  <- list(ng = 1000, burnin = 200, typeNames = f$typeNames)
+out <- gjam(f$formula, f$xdata, f$ydata, modelList = ml)
+pl  <- list(trueValues = f$trueValues, GRIDPLOTS = T)
+gjamPlot(output = out, plotPars = pl)
+```
+
+`gjamPlot` creates a number of plots comparing true and estimated parameters (for simulated data).  
+
+
+`r insertPlot("CA_predy.JPEG", "Predictions of responses in Y against true values." )`
+
+`r insertPlot("CA_predx.JPEG", "Inverse predicted versus true covariates in X. Variable names are at top right for each plot." )`
+
+
+### Breeding bird survey example
+
+Here is an example using BBS data, which we looked at earlier in the semester.  In this case, I'm using data from the eastern US:
+
+```{r specSummary, eval=F}
+load('BBSeast.Rdata')
+```
+
+
+`r insertPlot("bbsRichness.JPEG", "Predicted richness and diversity for BBS data." )`
+
+
+Here is a gjam analysis.  First, I trim the matrix `ydata` down to only those species that occur in at least 1000 observations:
+
+```{r gjam2, eval=F}
+tmp <- gjamTrimY(ydata, 1000)
+ytrim <- tmp$y                 #trimmed version of ydata
+dim(ytrim)
+```
+
+`r insertPlot("betaWinterTemp.JPEG", "Sensitivity to winter temperature in BBS." )`
+
+`r insertPlot("bbsSens.JPEG", "Commuity-wide sensitivity to predictors in the model." )`
+
+I set up three objects:
+
+`reductList` does dimension reduction on the covariance matrix.  With this many columns in `ytrim`, I cannot invert $\Sigma$.  I reduce the size to `N` effective rows and `r` effective columns.
+
+`modelList` holds the number of MCMC iterations `ng`, the `burnin` iterations, and the data type `'DA'`.
+
+`formula` is the model
+
+```{r, eval=F}
+reductList <- list(N = 20, r = 15)
+modelList  <- list(ng = 2000, burnin = 500, typeNames='DA', 
+           reductList = reductList)
+formula <- as.formula(~ winterTemp + therm + def + nlcd)
+```
+
+
+`r insertPlot("bbsYpred.JPEG", "Predicted abundance for BBS data." )`
+
+
+Here is a `gjam` fit, will take some time:
+```{r, eval=F}
+out     <- gjam(formula, xdata, ydata = ytrim, modelList = modelList)
+```
+
+
+There are a large number of species.  To help visualize output I assign cluster codes to specific groups.  This is a list `specColor`, where I have organized some of the species into groups that a non-specialist might recognize:
+
+
+```{r plot, eval=F}
+snames <- colnames(out$inputs$y)
+specGroups <- list(
+  urban = c("EuropeanStarling","AmericanCrow","ChimneySwift",
+            "CommonGrackle","FishCrow","HouseFinch",
+            "HouseSparrow","NorthernMockingbird","HouseWren"),
+  raptor = c('CoopersHawk','RedtailedHawk','SwainsonsHawk',
+             'RedshoulderedHawk','BaldEagle','AmericanKestrel',
+             'Osprey','BarredOwl','GreatHornedOwl'),
+  wetland = c("Anhinga","DoublecrestedCormorant",
+              "Mallard","WoodDuck","CanadaGoose","WhiteIbis",
+              "RedwingedBlackbird","Mallard","WoodDuck","CanadaGoose",
+              "WhiteIbis","GreatBlueHeron","GreatEgret",
+              "LittleBlueHeron","CattleEgret","GreenHeron",
+              "YellowcrownedNightHeron","BeltedKingfisher")
+)
+S <- ncol(out$inputs$y)
+specColor <- rep('black',S)
+cc <- c('brown','red','blue')
+for(j in 1:length(specGroups)){
+  wj <- which(snames %in% specGroups[[j]])
+  specColor[wj] <- cc[j]
+  names(specColor)[wj] <- names(specGroups)[j]
+}
+```
+Look at the structure of `specColor`.
+
+
+`r insertPlot("bbsXpred.JPEG", "Inverse prediction of predictors for BBS." )`
+
+`r insertPlot("bbsXpred.JPEG", "Inverse prediction of predictors for BBS." )`
+
+
+
+Here are plots:
+```{r, eval=F}
+plotPars <- list(GRIDPLOTS=T, specColor = specColor)
+gjamPlot(out, plotPars)
+```
+
+
+`r insertPlot("bbsFB.JPEG", "Predictor covariance in their effects on responses (left) and betas (right)." )`
+
+# prediction
+
+Prediction is used to i) evaluate model fit (in-sample, out-of-sample), ii) impute missing values in x and y, and iii) project the fitted model to a (out-of-sample) prediction grid.  Predictions marginalize the uncertainty in the fitted model.  Consider a likelihood and distribution of parameters $[\theta]$.  I can integrate the variation in parameters this way.
+
+$$
+[Y|X] = \int [Y | X, \theta] [\theta] d\theta
+$$
+You might recognize this to be the marginal likelihood of Bayes theorem, where $[\theta]$ is the prior distribution.
+
+To predict from a fitted model, I marginalize the posterior distribution,
+
+$$
+[Y^* |X^*] = \int [Y^* | X^*, \theta] [\theta | X, Y] d\theta
+$$
+The factors in the integrand are the likelihood, now written for a new data set, and the posterior distribution.  If the predictors in $X^*$ are the same as $X$, then I am predicting *in-sample*.  If not, I am predicting *out-of-sample*.  
+
+For a hierarchical model, there is uncertainty in parameters, in [process| parameters], and in [data | process, parameters], or
+
+$$
+[Y^*] = \int [Y^* | Z, \theta] [Z| \theta, X, Y] [\theta | X, Y] d\theta dZ
+$$
+where $Z$ represents a latent state or process.  In this case, I am assuming that some of the parameters connect observed $(X, Y)$ to the process $Z$ and others to the observations $Y$.
+
+When the model is fitted with MCMC, then this integration is done numerically.  The MCMC chains are stored as iteration $\times$ parameters matrix.  To integrate numerically, I draw a random row from this matrix, evaluate the process model, and then the data model.  By repeating this process I build up a distribution of estimates.  
+
+Inverse prediction involves inverting the model to predict $X$.  This is done by putting a prior distribution on $X$.  `gjam` provides these predictions for all predictors.
+
+The same basic concepts apply to multivariate distributions.  Because GJAM accommodates many types of data with censoring it looks a bit different, as outlined in the graph below:
+
+`r bigskip()`
+
+```{r fig4, fig.width = 5.9, fig.height = 4, echo = FALSE}
+
+  sig    <- .9
+  mu     <- 3.1
+  offset <- -2
+  
+  par(mfrow = c(1, 2), bty = 'n', mar = c(4, 5, 3, .1), cex=1.2, family='serif')
+  part <- c(0, 2.2, 3.3, 4.5, 6.6)
+  w    <- seq(-1, 7, length = 1000)
+  dw   <- dnorm(w, mu, sig)
+  dp   <- dw[ findInterval(part, w) ]
+  pw   <- pnorm(part, mu, sig)
+  pw[-1] <- diff(pw)
+  
+  plot(w, 2*dw - .5, type = 'l', ylim = c(-.5, 4), yaxt = 'n', 
+       ylab = expression(paste(italic(y), '|', italic(w), ', ', bold(p), 
+                               sep = '')), 
+       xlab = expression(paste(italic(w), '|', bold(x), ', ', bold(beta), 
+                              ', ', bold(Sigma), sep = '')), 
+       xlim = c(offset, 7), lwd = 2)
+  axis(2, at = c(0:5))
+  
+  db <- .15
+  int <- 4
+  
+  polygon( c(w, rev(w)), 2*c(dw, w*0) - .5, col = 'grey', lwd = 2)
+  lines(c(-1, part[1]), c(0, 0), lwd = 2)
+  
+  for(j in 1:(length(part))){
+    
+    lines( part[j:(j+1)], c(j, j), lwd = 3)
+    ww <- which(w >= part[j] & w <= part[j+1])
+    
+    if(j == 3){
+      w1 <- ww[1]
+      w2 <- max(ww)
+      arrows( mean(w[ww]), 2*max(dw[ww]) - .4, mean(w[ww]), 
+              j - .4, angle = 20, lwd = 5, col = 'grey', length = .2)
+      arrows( w[w1] - .5 , j , -.7, j , angle = 20, 
+              lwd = 5, col = 'grey', length = .2)
+      text( c(w[w1], w[w2]), c(3.3, 3.3), 
+            expression(italic(p)[4], italic(p)[5]), cex=.9)
+      text( w[w2] + .3, .6, expression( italic(w)[italic(is)] ))
+      text( 0, 3.5, expression( italic(y)[italic(is)] ))
+    }
+    
+    coll <- 'white'
+    if(j == int)coll <- 'grey'
+    rect( offset, j - 1 - db, 2*pw[j] + offset, j - 1 + db, 
+          col = coll, border = 'black', lwd = 2)
+  }
+  
+  ww <- which(w >= part[int - 1] & w <= part[int])
+  abline(h = -.5, lwd = 2)
+  
+  title('a) Data generation', adj = 0, font.main = 1, font.lab = 1, cex=.8)
+  
+  plot(w, 2*dw - .5, type = 'l', ylim = c(-.5, 4), yaxt = 'n', 
+       ylab = expression(italic(y)), 
+       xlab = expression(paste(italic(w), '|', italic(y), ', ', bold(p), sep = '')), 
+       xlim = c(offset, 7), lwd = 2, col = 'grey')
+  axis(2, at = c(0:5))
+  
+  abline(h = -.5, lwd = 2, col = 'grey')
+  
+  wseq <- c(-10,part)
+  for(j in 1:(length(part))){
+    
+    coll <- 'white'
+    border <- 'grey'
+    
+    if(j == int){
+      coll <- 'grey'
+      border <- 'black'
+      rect( offset, j - 1 - db, 2*pw[j] + offset, j - 1 + db, 
+            col = 'black', border = 'black')
+    }
+    lines( part[j:(j+1)], c(j, j), lwd = 3)
+    lines(part[c(j, j)], 2*c(0, dp[j])-.5, col = 'grey')
+  }
+  
+  lines(c(-1, part[1]), c(0, 0), lwd = 2)
+  ww <- which(w >= part[int - 1] & w <= part[int])
+  polygon( w[c(ww, rev(ww))], 2*c(dw[ww], ww*0) - .5, col = 'grey', lwd = 2)
+  
+  arrows( mean(w[ww]),  int - 1.3, mean(w[ww]),  2*max(dw) - .5, 
+          angle = 20, lwd = 5, col = 'grey', length = .2)
+  arrows( -.5,  int - 1, min(w[ww]) - .4, int - 1, angle = 20, 
+          lwd = 5, col = 'grey', length = .2)
+  
+  title('b) Inference', adj = 0, font.main = 1, font.lab = 1, cex=.8)
+```
+
+**Censoring in gjam.**  As a data-generating model (a), a realization $w_{is}$ that lies within a censored interval is translated by the partition $\mathbf{p}_{is}$ to discrete $y_{is}$.  The distribution of data (bars at left) is induced by the latent scale and the partition.  For inference (b), observed discrete $y_{is}$ takes values on the latent scale from a truncated distribution.
+
+
+Here is a prediction grid for the BBS data fitted with `gjam`,
+
+```{r preGrid, eval=F}
+newdata <- list(xdata = predGrid, nsim = 100)
+p1      <- gjamPredict(out, newdata = newdata)
+yPredMu <- p1$sdList$yMu                          # predictive mean
+yPredSe <- p1$sdList$yPe                          # predictive sd
+```
+
+Here is the distribution of soils in the prediction map:
+
+```{r map, eval=F}
+xdata <- out$inputs$xdata
+
+par(mfrow=c(1,1), mar=c(1,1,1,1))
+library('RColorBrewer')
+palette(brewer.pal(8,'Accent'))
+
+mapx <- range(xdata$Longitude)
+mapy <- range(xdata$Latitude)
+
+maps::map(boundary=T,col='grey',lwd=2,xlim=mapx,ylim=mapy)
+levs  <- levels(predGrid$soil)
+scols <- match(predGrid$soil,levs)
+points(predGrid[,'lon'],predGrid[,'lat'],col=scols,pch=16, cex=.6)
+
+maps::map(boundary=T,add=T,interior=T,col='white',lwd=7)
+maps::map(boundary=T,add=T,interior=T,col='grey',lwd=3)
+legend('bottomright',levs,text.col=c(1:length(levs)),bg='white',
+       box.col='white', cex=.6)
+```
+
+
+`r insertPlot("bbsMapMu.JPEG", "Predicted abundance for random species in BBS data." )`
+
+
+In this block, I generate maps for random species, including the predictive coefficient of variation,
+
+```{r specMap, eval=F}
+library(MBA)
+
+par(mfrow=c(2,2), mar=c(1,1,3,2), bty='n')
+ngrid <- 30
+
+colM <- colorRampPalette(brewer.pal(5,'YlOrRd'))
+  
+qlev <- seq(0,1,length=10)
+zlevs <- quantile(yPredMu,qlev)
+zlevs <- zlevs[!duplicated(zlevs)]
+nz  <- length(zlevs) - 1
+colm <- colM(nz)
+
+slevs <- quantile(yPredSe/(yPredMu + .01),qlev)
+slevs <- slevs[!duplicated(slevs)]
+slevs <- slevs[!duplicated(slevs)]
+ns  <- length(slevs) - 1
+cols <- colM(ns)
+  
+ii <- sample(colnames(yPredMu), 4)
+
+for(j in 1:4){
+  
+  i <- ii[j]
+  wi <- which(colnames(yPredMu) == i)
+  values2contour(xx=predGrid[,'lon'],yy=predGrid[,'lat'],
+                 z=yPredMu[,i],nx=ngrid,ny=ngrid,col=colm,
+                 zlevs=zlevs,lwd=.1,add=F,fill=T)
+  
+  maps::map(boundary=T,col='grey',lwd=2,xlim=mapx,ylim=mapy,add=T)
+  
+  ydat <- out$inputs$y[,wi]*1000  # per 1000 hrs effort
+  ydat <- ydat/max(ydat,na.rm=T)
+  colj <- .getColor('darkblue',ydat)
+  symbols(xdata$Longitude, xdata$Latitude, circles=ydat, inches=F, add=T,
+          fg = colj, bg = colj)
+  title(i)
+}
+
+# coefficient of variation
+
+for(j in 1:4){
+  
+  i <- ii[j]
+  wi <- which(colnames(yPredMu) == i)
+  zj <- yPredSe[,i]/(yPredMu[,i] + .01)
+  values2contour(xx=predGrid[,'lon'],yy=predGrid[,'lat'],
+                 z=zj,nx=ngrid,ny=ngrid,col=colm,
+                 zlevs=slevs,lwd=.1,add=F,fill=T)
+  
+  maps::map(boundary=T,col='grey',lwd=2,xlim=mapx,ylim=mapy,add=T)
+  
+  ydat <- out$inputs$y[,wi]*1000  # per 1000 hrs effort
+  ydat <- ydat/max(ydat,na.rm=T)
+  colj <- .getColor('darkblue',ydat)
+  symbols(xdata$Longitude, xdata$Latitude, circles=ydat, inches=F, add=T,
+          fg = colj, bg = colj)
+  title(i)
+}
+```
+
+
+`r insertPlot("bbsMapCV.JPEG", "Predicted coefficient of variation for random species in BBS data." )`
+
+
+
+# More exercises
+
+`r colFmt(ebreak,'blue')`
+
+`r colFmt('Exercise 2.','blue')` Jon has a survey with one binary response (`typeNames = 'PA'`) and three ordinal responses (ordinal counts, `'OC'`).  Simulate his data using `gjamSimData` and analyze it using `gjam`.  Using the documentation for `gjam`:
+
+a) What are the partition estimates and what role do they play?
+
+b) Which are better predicted by the fitted model, the `PA` data or the `OC` data?  Why might they differ?
+
+
+`r colFmt('Exercise 3.','blue')` Select 10 species from the BBS data and do a model selection (using DIC) to evaluate a limited number of variable combinations.
+
+a) How do the DIC values compare with overall sensitivity?
+
+b) With inverse prediction?
+
+
+`r colFmt('Exercise 4.','blue')` Using the block of code that generates the predictive coefficient of variation, provide an interpretation of what you see.
+
+`r colFmt(ebreak,'blue')`
+
+
+
+
