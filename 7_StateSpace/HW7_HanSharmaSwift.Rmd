@@ -406,7 +406,7 @@ for (i in 1:length(priors)) {
     
     xlim <- xlims[,k]#range(bk)
     ylim <- ylims[,k]#8/diff(xlim)
-    plot(NULL, xlim=xlim,ylim=ylim,xlab=vars[k],ylab='Density')
+    plot(NULL, xlim=xlim,ylim=ylim,xlab=vars[k],ylab='Density', main=paste0('variance=', sigM))
     
     for(j in 1:ncol(bk)){
       dk <- density(bk[,j])
