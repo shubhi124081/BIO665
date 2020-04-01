@@ -5,6 +5,7 @@
 # total dissolved nitrogen (TDN) and dissolved organic nitrogen (DON) 
 
 #-------------------------------------------------------------------------------
+rm(list=ls())
 setwd(dirname(rstudioapi::getSourceEditorContext()$path))
 source('../clarkfunctions2020.R')
 Rcpp::sourceCpp('../cppFns.cpp')
@@ -60,9 +61,9 @@ z[missz] <- priorx[missz[,2]]    # initial missing z
 
 sigM <- .1                        #prior mean variances
 tauM <- .1
-wt <- 100
+wt <- 1e5
 sp <- varPrior(sigM, wt)          #varPrior is gonna spit out a,b for gamma            
-tp <- varPrior(tauM, wt/5)        #weak prior
+tp <- varPrior(tauM, wt)          #weak prior = wt/5
 
 sg <- 1/rgamma(1,sp[1],sp[2])     #initialize variance values
 tg <- 1/rgamma(1,tp[1],tp[2])
@@ -116,17 +117,17 @@ keep  <- 200:ng
 xpost <- t( apply(xgibbs[keep,],2,quantile,c(.5,.025,.975)) )
 ylim  <- range(xpost)
 
-par(mfrow=c(2,2),bty='n', mar=c(3,2,2,1))
-for(j in 1:4){
-  ij <- first[j]:last[j]
-  shadeInterval(ij,xpost[ij,2:3],add=F,ylim=ylim,xlab='Weeks')  
-  points(ij,y[ij],lwd=2,cex=.1, col='blue')                 #obs 
-  wm <- missY[[j]]
-  points(ij[wm],xpost[ij[wm],1],col='orange',cex=.5,pch=16) #missing
-  title(slevs[j])
-}
-
-.processPars(bgibbs[keep,],xtrue=bg*0,DPLOT=T, burnin = 200) 
+# par(mfrow=c(2,2),bty='n', mar=c(3,2,2,1))
+# for(j in 1:4){
+#   ij <- first[j]:last[j]
+#   shadeInterval(ij,xpost[ij,2:3],add=F,ylim=ylim,xlab='Weeks')  
+#   points(ij,y[ij],lwd=2,cex=.1, col='blue')                 #obs 
+#   wm <- missY[[j]]
+#   points(ij[wm],xpost[ij[wm],1],col='orange',cex=.5,pch=16) #missing
+#   title(slevs[j])
+# }
+# 
+# .processPars(bgibbs[keep,],xtrue=bg*0,DPLOT=T, burnin = 200) 
 .processPars(vgibbs[keep,],xtrue=c(sigM,tauM),DPLOT=T, burnin = 200) #compare prior mean
 
 vars <- c('Temp', 'Cl')
@@ -155,12 +156,8 @@ for(k in 1:2){
 
 # How much 'weight' on the priors for $\sigma^2, \tau^2$ is needed to insure that 
 # the posterior distribution is close to your prior distribution?
-# if I make the weights really low (wt=10), then all of the estimates come out to a 
-# gaussian with mean 0. If I make them ridiculously high (wt=1e6), the same also 
-# happens. Odd.
 
 # How does the prior on $\sigma^2, \tau^2$ affect estimates of $\mathbf{\beta}$?
-
 
 # Repeat the analysis with DON as the response variable and interpret results.
 #anything to do with site is flipped for DON.

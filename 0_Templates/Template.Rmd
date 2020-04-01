@@ -11,7 +11,7 @@ output:
 ```{r setup, include=F}
 #----------------------------------------------------------------------------
 # LOADING
-knitr::opts_chunk$set(echo=FALSE, eval=TRUE, cache=TRUE)
+knitr::opts_chunk$set(echo=FALSE, eval=TRUE, cache=FALSE)
 pacman::p_load(ggplot2)
 source('../clarkfunctions2020.R')
 Rcpp::sourceCpp('../cppFns.cpp')

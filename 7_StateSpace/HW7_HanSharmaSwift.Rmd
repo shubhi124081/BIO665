@@ -11,7 +11,7 @@ output:
 ```{r setup, include=F}
 #----------------------------------------------------------------------------
 # LOADING
-knitr::opts_chunk$set(echo=FALSE, eval=TRUE, cache=TRUE)
+knitr::opts_chunk$set(echo=FALSE, eval=TRUE, cache=FALSE)
 pacman::p_load(ggplot2, dplyr, Rfast)
 source('../clarkfunctions2020.R')
 Rcpp::sourceCpp('../cppFns.cpp')
@@ -26,14 +26,12 @@ Rcpp::sourceCpp('../cppFns.cpp')
 
 ## Exercise 1 {#q1}
 
-* Conduct simulation experiments to determine how different values of `sig` and 
-`tau` affect the behavior of `x`.  
+_Conduct simulation experiments to determine how different values of `sig` and 
+`tau` affect the behavior of `x`._
 
-* Determine how these same parameters affect the standard deviation of `x` and 
-`y`.
-
-* Determine how the length of the series `nt` affects the standard deviation in 
-`x` and in the differenced sequence of `x`.
+The results show that for both x and y, higher sigma leads to higher standard 
+deviation. For y, increasing tau also leads to increasing standard deviation, 
+but the magnitude of increase is smaller than the increase caused by sigma. 
 
 
 ```{r q1}
@@ -66,9 +64,8 @@ plot(time, x[,1], type = "l", ylim= c(min(x), max(x)), ylab= "x")
 color <- c("black", "blue", "red", "orange", "grey")
 for(i in 2:5){ lines(time, x[,i], col = color[i]) }
 legend("topleft", col = color, lty = c(1,1,1,1,1), legend = paste('sigma =', fullSig))
-```
 
-```{r}
+# Plot of variance straightened out.
 inx <- c(1, 3, 5)
 sig <- fullSig[inx]
 color <- color[inx]
@@ -81,7 +78,13 @@ for(i in 1:L){
 }
 ```
 
-Our resuljts indicate that X with higher sigma fluctuates more. Since behaviour of y does not affect the behaviour of x, change of tau does not change the behaviour of x.
+
+_Determine how these same parameters affect the standard deviation of `x` and 
+`y`._
+
+Our results indicate that X with higher `sigma` fluctuates more. Since behaviour 
+of `y` does not affect the behaviour of `x`, change of `tau` does not change the 
+behaviour of `x.`
 
 ```{r}
 # 2. How do these same parameters affect the standard deviation of x and y?
@@ -104,7 +107,16 @@ knitr::kable(df,col.names = c("sigma = 1", "sigma = 3", "sigma = 5", "sigma = 7"
 knitr::kable(matrix(y_std_sig5,1,5),col.names = c("tau = 10", "tau = 15", "tau = 20", "tau = 25", "tau = 30"))
 ```
  
-The results show that for both x and y, higher sigma leads to higher standard deviation. For y, increasing tau also leads to increasing standard deviation, but the magnitude of increase is smaller than the increase caused by sigma. 
+
+
+
+
+_Determine how the length of the series `nt` affects the standard deviation in 
+`x` and in the differenced sequence of `x`._
+
+The result shows that increasing  length of the time series does not necessary 
+decrease the standard deviation in `x`, but decreases standard deviation in the 
+differenced sequence of `x`. 
 
 
 ```{r}
@@ -125,15 +137,14 @@ df2 <- rbind(Xx_std,Xxdiff_std )
 knitr::kable(as.matrix(df2),col.names = c("t = 200", "t = 400", "t = 600"))
 ```
 
-The result shows that increasing  length of the time series does not necessary decrease the standard deviation in x, but decreases standard deviation in the differenced sequence of x. 
 
 
 
 
 ## Exercise 2 {#q2}
 
-Working in your group, analyze the following model in jags.  Start by simulating 
-the data set.  Then write jags code to fit the model. 
+Working in your group, analyze the following model in jags. Start by simulating 
+the data set. Then write jags code to fit the model. 
 
 $$x_t \sim N(\alpha + \beta x_{t-1}, \sigma^2)$$
 
@@ -149,28 +160,325 @@ $$y_t \sim Poi( exp(x_t) )$$
 
 ## Exercise 3 {#q3}
 
-* Before running any more analysis, say what you think should be the variance on 
-the process and the observations.  Justify your answer.
-
-* How much 'weight' on the priors for $\sigma^2, \tau^2$ is needed to insure that 
-the posterior distribution is close to your prior distribution?
-
-* How does the prior on $\sigma^2, \tau^2$ affect estimates of $\mathbf{\beta}$?
-
-* Repeat the analysis with DON as the response variable and interpret results.
-
-* What is the answer to the motivating question: Can total dissolved nitrogen 
-(TDN) and dissolved organic nitrogen (DON) be explained by temperature, 
-precipitation, and chlorine concentation ([Cl]), and does it differs between 
-coastal streams?
-
-```{r q3}
-#----------------------------------------------------------------------------
+```{r q3setup}
+#-------------------------------------------------------------------------------
 ## EXERCISE 3
+
+#-------------------------------------------------------------------------------
+# First I read the data and set up a design matrix for the sites and several 
+# covariates:
+
+# Data and formula matrix
+data <- read.csv('../dataFiles/combinedLevelChem2007.csv',header=T)
+formula <- as.formula( ~ prec + Temp*Site + Cl*Site)
+tmp <- model.frame(formula, data, na.action=na.pass)
+z   <- model.matrix(formula, tmp)
+
+# Find site levels
+slevs  <- attr(data$Site,'levels')
+sl     <- match(data$Site,slevs)
+
+# Counts
+ngroup <- length(slevs)
+ns     <- ngroup - 1
+nt     <- nrow(data)
+q      <- ncol(z)
+
+# X and Y
+xnames <- colnames(z)
+ynames <- c('TDN','DON')
+vnames <- c('sigma', 'tau')
+
+#-------------------------------------------------------------------------------
+# multiple time series
+
+last  <- which( diff(sl) == 1 )  # first and last row for each site
+first <- c(1,last + 1)
+last  <- c(last,nt)
+
+#-------------------------------------------------------------------------------
+# missing covariates, missing states
+y <- data[,ynames[1]]            # use TDN as response; change to DON later.
+v <- getMissX(z, y, first, last)
+prows <- v$prows                 # t rows by site
+rrows <- v$rrows                 # t+1 rows by site
+missz <- v$missx
+missy <- v$missy                 # missing y index in stacked data
+missY <- v$missY                 # missing y by site as a list
+
+priorx   <- colMeans(z,na.rm=T)  # prior mean for missing covariates
+z[missz] <- priorx[missz[,2]]    # initial missing z
 
 ```
 
 
+_Before running any more analysis, say what you think should be the variance on 
+the process and the observations.  Justify your answer._
+
+No answer yet.
+
+_How much 'weight' on the priors for $\sigma^2, \tau^2$ is needed to insure that 
+the posterior distribution is close to your prior distribution? Explain how you 
+manipulated prior weight to arrive at your answer._
+
+For the following chunk of code, I tried a weight (`wt`) of 1e3, 1e5, and 1e8. 
+
+```{r q3examp, echo=T, eval=F}
+sigM <- .1                        
+tauM <- .1
+for (wt in c(1e3, 1e5, 1e8)) {
+  sp <- varPrior(sigM, wt)                     
+  tp <- varPrior(tauM, wt)  
+  ...
+}
+```
+
+Unsurprisingly, as the weight on the priors increased, the posterior estimates for `sigma` and `tau` approached the prior values (0.1, 0.1):
+
+```{r q3pt2}
+sigM <- .1                        
+tauM <- .1
+ng     <- 2000
+keep  <- 200:ng
+for (wt in c(1e3, 1e5, 1e8)) {
+  sp <- varPrior(sigM, wt)                     
+  tp <- varPrior(tauM, wt)   
+  
+  sg <- 1/rgamma(1,sp[1],sp[2])     #initialize variance values
+  tg <- 1/rgamma(1,tp[1],tp[2])
+  bg <- matrix(0,q,1)
+  
+  tmp <- initialStatesSS(y)         #initial missing y
+  xg  <- tmp$x
+
+  #-------------------------------------------------------------------------------
+  # Gibbs Sampling
+  vgibbs <- matrix(0, ng, 2)
+  xgibbs <- matrix(0, ng, nt)
+  bgibbs <- matrix(0, ng, q)
+  zgibbs <- matrix(0, ng, length(missz))
+  colnames(vgibbs) <- vnames
+  colnames(bgibbs) <- xnames
+  
+  for(g in 1:ng){
+    bg <- .updateBeta(z[prows,], xg[rrows] - xg[prows], sigma=sg, 
+                      priorIVB=diag(.001,q), priorB=matrix(0,q)) # 
+    mu <- z%*%bg  # mean vector
+    for(j in 1:ngroup){           
+      jj <- first[j]:last[j]
+      xg[jj] <- updateSSRW(states=xg[jj], yy=y[jj], zb=mu[jj], missing=missY[[j]], 
+                           tg=tg, sg=sg)   
+    }
+    sg <- updateVariance(xg[rrows],xg[prows] + mu[prows],sp[1],sp[2])
+    tg <- updateVariance(y[-missy],xg[-missy],tp[1],tp[2])
+    z[missz] <- imputeX( missx = missz, xx = z[prows,], 
+                         yy = xg[prows] - xg[rrows],
+                         bg = bg, sg, priorx )[missz]
+    vgibbs[g,] <- c(sg,tg)
+    xgibbs[g,] <- xg
+    bgibbs[g,] <- bg
+    zgibbs[g,] <- z[missz]
+  }
+  .processPars(vgibbs[keep,],xtrue=c(sigM,tauM),DPLOT=T, burnin = 200)
+}
+```
+
+_How does the prior on $\sigma^2, \tau^2$ affect estimates of $\mathbf{\beta}$?_
+
+For the following chunk of code, I used prior variance values (`priors`) of 0.1, 0.5, and 0.7:
+
+```{r q3examp2, echo=T, eval=F}
+priors <- c(0.1, 0.4, 0.7)
+for (i in 1:length(priors)) {
+  sigM <- tauM <- priors[i]
+  sp <- varPrior(sigM, nt)                     
+  tp <- varPrior(tauM, nt/5)   
+  ...
+}
+```
+
+In increasing the priors for $\sigma^2, \tau^2$ from 0.1 to 0.7, estimates for the $\mathbf{\beta}$'s don't change too much, but their character is much more spread out. This makes sense, as I'm increasing the prior _variance_, and so as variance increases, densities will be more smeared out:
+
+```{r q3pt3}
+ng     <- 2000
+keep  <- 200:ng
+priors <- c(0.1, 0.4, 0.7)
+xlims <- data.frame(temp=c(-0.03, 0.025), cl=c(-0.0005, 0.002))
+ylims <- data.frame(temp=c(0, 200), cl=c(0, 3500))
+for (i in 1:length(priors)) {
+  sigM <- tauM <- priors[i]
+  sp <- varPrior(sigM, nt)                     
+  tp <- varPrior(tauM, nt/5)   
+  
+  sg <- 1/rgamma(1,sp[1],sp[2])     #initialize variance values
+  tg <- 1/rgamma(1,tp[1],tp[2])
+  bg <- matrix(0,q,1)
+  
+  tmp <- initialStatesSS(y)         #initial missing y
+  xg  <- tmp$x
+
+  #-------------------------------------------------------------------------------
+  # Gibbs Sampling
+  vgibbs <- matrix(0, ng, 2)
+  xgibbs <- matrix(0, ng, nt)
+  bgibbs <- matrix(0, ng, q)
+  zgibbs <- matrix(0, ng, length(missz))
+  colnames(vgibbs) <- vnames
+  colnames(bgibbs) <- xnames
+  
+  for(g in 1:ng){
+    bg <- .updateBeta(z[prows,], xg[rrows] - xg[prows], sigma=sg, 
+                      priorIVB=diag(.001,q), priorB=matrix(0,q)) # 
+    mu <- z%*%bg  # mean vector
+    for(j in 1:ngroup){           
+      jj <- first[j]:last[j]
+      xg[jj] <- updateSSRW(states=xg[jj], yy=y[jj], zb=mu[jj], missing=missY[[j]], 
+                           tg=tg, sg=sg)   
+    }
+    sg <- updateVariance(xg[rrows],xg[prows] + mu[prows],sp[1],sp[2])
+    tg <- updateVariance(y[-missy],xg[-missy],tp[1],tp[2])
+    z[missz] <- imputeX( missx = missz, xx = z[prows,], 
+                         yy = xg[prows] - xg[rrows],
+                         bg = bg, sg, priorx )[missz]
+    vgibbs[g,] <- c(sg,tg)
+    xgibbs[g,] <- xg
+    bgibbs[g,] <- bg
+    zgibbs[g,] <- z[missz]
+  }
+  # .processPars(bgibbs[keep,],xtrue=bg*0,DPLOT=T, burnin = 200) 
+  vars <- c('Temp', 'Cl')
+  par(mfrow=c(2,1), bty='n', mar=c(4,4,2,2))
+  sites <- levels(data$Site)
+  for(k in 1:2){
+    
+    wk <- grep(vars[k],colnames(bgibbs))
+    bk <- bgibbs[keep,wk]
+    
+    xlim <- xlims[,k]#range(bk)
+    ylim <- ylims[,k]#8/diff(xlim)
+    plot(NULL, xlim=xlim,ylim=ylim,xlab=vars[k],ylab='Density')
+    
+    for(j in 1:ncol(bk)){
+      dk <- density(bk[,j])
+      lines(dk[[1]],dk[[2]],col=j, lwd=2)
+      wmax <- which.max(dk[[2]])
+      text( dk[[1]][wmax], 1.2*dk[[2]][wmax], sites[j] ,col=j)
+    }
+  }
+}
+```
+
+
+_Repeat the analysis with DON as the response variable and interpret results._
+
+With DON, the responses to temperature and Cl are similar in sign; however, all of the betas for Site and Site interactions with other variables have been flipped in sign. In addition, when TDN was the response variable, `sigma` and `tau` were overestimated; with DON, both are now underestimated (estimated values are less than the true value).
+
+```{r q3}
+#-------------------------------------------------------------------------------
+# missing covariates, missing states
+y <- data[,ynames[2]]        # use TDN as response; change to DON later.
+v <- getMissX(z, y, first, last)
+prows <- v$prows                 # t rows by site
+rrows <- v$rrows                 # t+1 rows by site
+missz <- v$missx
+missy <- v$missy                 # missing y index in stacked data
+missY <- v$missY                 # missing y by site as a list
+
+priorx   <- colMeans(z,na.rm=T)  # prior mean for missing covariates
+z[missz] <- priorx[missz[,2]]    # initial missing z
+
+#-------------------------------------------------------------------------------
+# Initial values for missing states come from a function initialStatesSS.
+
+sigM <- .1                        #prior mean variances
+tauM <- .1
+wt <- 100
+sp <- varPrior(sigM, wt)          #varPrior is gonna spit out a,b for gamma            
+tp <- varPrior(tauM, wt/5)        #weak prior
+
+sg <- 1/rgamma(1,sp[1],sp[2])     #initialize variance values
+tg <- 1/rgamma(1,tp[1],tp[2])
+bg <- matrix(0,q,1)
+
+tmp <- initialStatesSS(y)         #initial missing y
+xg  <- tmp$x
+
+#-------------------------------------------------------------------------------
+# Gibbs Sampling
+ng     <- 2000
+vgibbs <- matrix(0, ng, 2)
+xgibbs <- matrix(0, ng, nt)
+bgibbs <- matrix(0, ng, q)
+zgibbs <- matrix(0, ng, length(missz))
+colnames(vgibbs) <- vnames
+colnames(bgibbs) <- xnames
+
+for(g in 1:ng){
+  
+  # parameters
+  bg <- .updateBeta(z[prows,], xg[rrows] - xg[prows], sigma=sg, 
+                    priorIVB=diag(.001,q), priorB=matrix(0,q)) # 
+  mu <- z%*%bg  # mean vector
+  
+  # latent variables by site
+  for(j in 1:ngroup){           
+    jj <- first[j]:last[j]
+    xg[jj] <- updateSSRW(states=xg[jj], yy=y[jj], zb=mu[jj], missing=missY[[j]], 
+                         tg=tg, sg=sg)   
+  }
+  
+  # variances
+  sg <- updateVariance(xg[rrows],xg[prows] + mu[prows],sp[1],sp[2])
+  tg <- updateVariance(y[-missy],xg[-missy],tp[1],tp[2])
+  
+  # missing observations
+  z[missz] <- imputeX( missx = missz, xx = z[prows,], 
+                       yy = xg[prows] - xg[rrows],
+                       bg = bg, sg, priorx )[missz]
+  vgibbs[g,] <- c(sg,tg)
+  xgibbs[g,] <- xg
+  bgibbs[g,] <- bg
+  zgibbs[g,] <- z[missz]
+}
+
+#-------------------------------------------------------------------------------
+# Latent states plots
+
+keep  <- 200:ng
+xpost <- t( apply(xgibbs[keep,],2,quantile,c(.5,.025,.975)) )
+ylim  <- range(xpost)
+
+.processPars(bgibbs[keep,],xtrue=bg*0,DPLOT=T, burnin = 200) 
+.processPars(vgibbs[keep,],xtrue=c(sigM,tauM),DPLOT=T, burnin = 200)
+
+vars <- c('Temp', 'Cl')
+par(mfrow=c(2,1), bty='n', mar=c(4,4,2,2))
+sites <- levels(data$Site)
+for(k in 1:2){
+  
+  wk <- grep(vars[k],colnames(bgibbs))
+  bk <- bgibbs[keep,wk]
+  
+  xlim <- range(bk)
+  ymax <- 8/diff(xlim)
+  plot(NULL, xlim=xlim,ylim=c(0,ymax),xlab=vars[k],ylab='Density', main=paste('variance=', sigM))
+  
+  for(j in 1:ncol(bk)){
+    dk <- density(bk[,j])
+    lines(dk[[1]],dk[[2]],col=j, lwd=2)
+    wmax <- which.max(dk[[2]])
+    text( dk[[1]][wmax], 1.2*dk[[2]][wmax], sites[j] ,col=j)
+  }
+}
+
+```
+
+_What is the answer to the motivating question: Can total dissolved nitrogen 
+(TDN) and dissolved organic nitrogen (DON) be explained by temperature, 
+precipitation, and chlorine concentation ([Cl]), and does it differs between 
+coastal streams?_
+
+The effects of Chlorine and Temperature on TDN and DON are very much determined by the stream site. Although the sites `Midpoint` and `Outflow` are pretty similar to each other across the board, for both TDN and DON, `Inflow` and `Pump Station` have visibly different effects, when combined with chlorine and temperature, on our response variables.
 
 ## Appendix {#appendix}
 
