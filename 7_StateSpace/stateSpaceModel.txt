@@ -1,0 +1,15 @@
+model {
+
+     mu[1] ~ dnorm(x[1], 10)
+     xg[1] <- mu[1]
+     
+     for(t in 2:nt) {
+     mu[t] <- xg[t-1]* b1
+     xg[t] ~ dnorm(mu[t],procErr)
+     y[t] ~ dpois(exp(xg[t]))
+     }
+     
+     procErr ~ dunif(0,10)
+     sigma <- 1/procErr
+     b1 ~ dunif(-1,1)
+     }  

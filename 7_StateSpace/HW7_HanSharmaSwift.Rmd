@@ -266,7 +266,7 @@ z[missz] <- priorx[missz[,2]]    # initial missing z
 _Before running any more analysis, say what you think should be the variance on 
 the process and the observations.  Justify your answer._
 
-No answer yet.
+If the data have a wide spread, the prior variance on observations should be similarly large. However, the variance of the ydata is `round(var(y, na.rm=T), 2)`, which is pretty high. We would argue that a slightly lower variance would be acceptable. As for the variance on the process, we have no intuition on this, so would probably set it to be equal to whatever we feel is appropriate for the observation variance.
 
 _How much 'weight' on the priors for $\sigma^2, \tau^2$ is needed to insure that 
 the posterior distribution is close to your prior distribution? Explain how you 
@@ -424,7 +424,7 @@ _Repeat the analysis with DON as the response variable and interpret results._
 
 With DON, the responses to temperature and Cl are similar in sign; however, all of the betas for Site and Site interactions with other variables have been flipped in sign. In addition, when TDN was the response variable, `sigma` and `tau` were overestimated; with DON, both are now underestimated (estimated values are less than the true value).
 
-```{r q3}
+```{r q3pt4}
 #-------------------------------------------------------------------------------
 # missing covariates, missing states
 y <- data[,ynames[2]]        # use TDN as response; change to DON later.
