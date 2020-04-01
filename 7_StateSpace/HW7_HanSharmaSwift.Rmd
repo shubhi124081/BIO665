@@ -155,6 +155,57 @@ $$y_t \sim Poi( exp(x_t) )$$
 #----------------------------------------------------------------------------
 ## EXERCISE 2
 
+require(rjags)
+require(coda)
+nt   <- 300                       #no. time intervals
+time <- c(1:nt)                   #sample times
+sig  <- .01                         #process err variance
+x    <- rep(0,nt)
+beta  <- matrix(runif(1, -.01,.01))             #coefficient vector length 1
+
+for(t in 2:nt){
+  
+  x[t]<- rnorm(1, x[t-1]*beta, sig)
+
+}
+
+
+y <- rpois(nt, exp(x))
+
+
+#model in jags 
+
+cat( "model {
+
+     mu[1] ~ dnorm(x[1], 10)
+     xg[1] <- mu[1]
+     
+     for(t in 2:nt) {
+     mu[t] <- xg[t-1]* b1
+     xg[t] ~ dnorm(mu[t],procErr)
+     y[t] ~ dpois(exp(xg[t]))
+     }
+     
+     procErr ~ dunif(0,10)
+     sigma <- 1/procErr
+     b1 ~ dunif(-1,1)
+     }  ", fill=T,file="stateSpaceModel.txt" )
+
+ssData   <- list(y = y, x = x, nt = nt )
+parNames <- c('b1', 'sigma')
+
+ssFit <- jags.model(data=ssData, file="stateSpaceModel.txt")
+
+
+update(ssFit)
+
+ssFit <- coda.samples(ssFit, variable.names = parNames, 
+                      n.iter=5000)
+
+par(mar=c(3,3,1,1))
+plot( as.mcmc(ssFit) )
+
+
 ```
 
 
