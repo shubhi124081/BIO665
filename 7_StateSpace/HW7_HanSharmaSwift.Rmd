@@ -15,11 +15,6 @@ knitr::opts_chunk$set(echo=FALSE, eval=TRUE, cache=FALSE)
 pacman::p_load(ggplot2, dplyr, Rfast)
 source('../clarkfunctions2020.R')
 Rcpp::sourceCpp('../cppFns.cpp')
-# any libraries and data here
-
-#----------------------------------------------------------------------------
-# FUNCTIONS
-# put functions here
 
 ```
 
@@ -35,7 +30,7 @@ but the magnitude of increase is smaller than the increase caused by sigma.
 
 
 ```{r q1}
-#----------------------------------------------------------------------------
+#-------------------------------------------------------------------------------
 ## EXERCISE 1
 nt   <- 200                      #no. time intervals
 time <- c(1:nt)                  #sample times
@@ -152,7 +147,7 @@ $$y_t \sim Poi( exp(x_t) )$$
 
 
 ```{r q2}
-#----------------------------------------------------------------------------
+#-------------------------------------------------------------------------------
 ## EXERCISE 2
 
 require(rjags)
@@ -266,7 +261,7 @@ z[missz] <- priorx[missz[,2]]    # initial missing z
 _Before running any more analysis, say what you think should be the variance on 
 the process and the observations.  Justify your answer._
 
-If the data have a wide spread, the prior variance on observations should be similarly large. However, the variance of the ydata is `round(var(y, na.rm=T), 2)`, which is pretty high. We would argue that a slightly lower variance would be acceptable. As for the variance on the process, we have no intuition on this, so would probably set it to be equal to whatever we feel is appropriate for the observation variance.
+If the data have a wide spread, the prior variance on observations should be similarly large. However, the variance of the ydata is `r round(var(y, na.rm=T), 2)`, which is pretty high. We would argue that a slightly lower variance would be acceptable. As for the variance on the process, we have no intuition on this, so would probably set it to be equal to whatever we feel is appropriate for the observation variance.
 
 _How much 'weight' on the priors for $\sigma^2, \tau^2$ is needed to insure that 
 the posterior distribution is close to your prior distribution? Explain how you 
