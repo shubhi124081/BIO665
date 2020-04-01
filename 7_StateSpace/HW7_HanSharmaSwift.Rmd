@@ -151,6 +151,8 @@ $$x_t \sim N(\alpha + \beta x_{t-1}, \sigma^2)$$
 $$y_t \sim Poi( exp(x_t) )$$
 
 
+
+We were trying to estimate two parameters here, $\beta$ and $\sigma^2$. The results of the jags model and trace plots of the parameters willl show the resulting distribution and value of $\beta$ and $\sigma^2$.
 ```{r q2}
 #----------------------------------------------------------------------------
 ## EXERCISE 2
@@ -207,6 +209,8 @@ plot( as.mcmc(ssFit) )
 
 
 ```
+
+We see that the $\beta$ chain remains noisy (perhaps unconverged after 5000 iterations) but the distribution is centered around 0. This is unsurprising given the way we simulated $\beta$ was from a uniform with bounds -0.01, 0.01. The true value of $\beta$ in our analysis (i.e. the value of $\beta$ we used to simulate the x and y data with was close to 0.06). Therefore, the MCMC converges on roughly the right value of $\beta$. For $\sigma$, we used a true value of $\sigma = 0.01$ to simulate the data. The variance from the MCMC converges on a value higher than that ($\sim$ 0.1). 
 
 
 ## Exercise 3 {#q3}
