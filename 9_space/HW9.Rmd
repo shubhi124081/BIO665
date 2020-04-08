@@ -26,7 +26,7 @@ Rcpp::sourceCpp('../cppFns.cpp')
 
 ## Exercise 1 {#q1}
 
-Exercise 1 here.
+_Select a species to fit.  Use AIC as a model selection criterion to determine which combination of variables in `xdata` best fits the data._
 
 ```{r q1}
 #----------------------------------------------------------------------------
@@ -37,7 +37,7 @@ Exercise 1 here.
 
 ## Exercise 2 {#q2}
 
-Exercise 2 here.
+_Do you believe that the MCMC converged to a posterior distribution?  If not, what might you do to convince yourself?_
 
 ```{r q2}
 #----------------------------------------------------------------------------
@@ -48,7 +48,14 @@ Exercise 2 here.
 
 ## Exercise 3 {#q3}
 
-Exercise 3 here.
+
+_Divide up your group so that each determines how one of the following influences model selection.  Use DIC as your criterion._
+
+_1. Different numbers of knots_
+
+_2. Prior distributions on $\sigma^2$._
+
+_3. Prior distributions on $\phi$._
 
 ```{r q3}
 #----------------------------------------------------------------------------
@@ -59,7 +66,7 @@ Exercise 3 here.
 
 ## Exercise 4 {#q4}
 
-Exercise 4 here.
+_Interpret the contributions of the mean and the spatial random effects to predicted surfaces.  In other words, what do they mean?_
 
 ```{r q4}
 #----------------------------------------------------------------------------
@@ -68,6 +75,34 @@ Exercise 4 here.
 ```
 
 
+## Exercise 5 {#q5}
+
+_Repeat exercise 3 with GJAM and compare results for the two models.  If there are differences, can you explain them?_
+
+```{r q5}
+#----------------------------------------------------------------------------
+## EXERCISE 5
+
+```
+
+## Exercise 6 {#q6}
+
+_Repeat the spatial analysis with a binomial model.  Use the `CARBayes` help page.  Interpret the analysis._
+
+```{r q6}
+#----------------------------------------------------------------------------
+## EXERCISE 6
+
+```
+
+## Exercise 7 {#q7}
+_Work through the lip cancer example in groups as if you were attempting to apply it to a data set of your own._
+
+```{r q7}
+#----------------------------------------------------------------------------
+## EXERCISE 7
+
+```
 ## Appendix {#appendix}
 
 ```{r ref.label=knitr::all_labels(), echo = T, eval = F}
