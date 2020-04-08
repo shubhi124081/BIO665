@@ -1,0 +1,740 @@
+---
+title: "spatial models"
+author: '[Jim Clark](http://sites.nicholas.duke.edu/clarklab/)'
+date: '`r Sys.Date()`'
+output:
+  pdf_document:
+    toc: yes
+    toc_depth: '3'
+  html_document:
+    fig_caption: yes
+    highlight: kate
+    theme: sandstone
+    toc: yes
+    toc_depth: 3
+subtitle: env/bio 665 Bayesian inference for environmental models
+fontsize: 12pt
+---
+
+```{r colfmt, echo=F}
+ebreak <- "--------------------------- ===== ---------------------------"
+makeSpace <- function(){
+  outputFormat = knitr::opts_knit$get("rmarkdown.pandoc.to")
+  if(outputFormat == 'latex')
+    "\\bigskip"
+  else if(outputFormat == 'html')
+    "<br>"
+  else
+    "<br>"
+}
+colFmt = function(x,color){
+  outputFormat = knitr::opts_knit$get("rmarkdown.pandoc.to")
+  if(outputFormat == 'latex')
+    paste("\\textcolor{",color,"}{",x,"}",sep="")
+  else if(outputFormat == 'html')
+    paste("<font color='",color,"'>",x,"</font>",sep="")
+  else
+    x
+}
+```
+
+
+`r makeSpace()`
+  
+# resources
+
+## software
+
+```{r clarkFunctions, message=FALSE, cache=FALSE}
+source('../clarkFunctions2020.r')
+```
+
+We need these libraries:
+```{r, libs, message=F, warning=F, eval=T}
+options(width = 85) 
+library(spBayes)
+library(MBA)
+library(geoR)
+library(fields)
+library(sp)
+library(maptools)
+library(rgdal)
+library(classInt)
+library(lattice)
+library(xtable)
+library(MASS)
+library(geomapdata)
+library(mapdata)
+library(RANN)
+library(gjam)
+library(coda)
+library(CARBayes)
+library(CARBayesdata)
+```
+
+
+## readings
+
+Background from Andy Finley's site: http://blue.for.msu.edu/GC14. 
+
+# objectives
+
+
+* recognize where spatial models are needed and where they are not.
+
+* identify block-referenced, point-referenced, and point-pattern data.
+
+* determine whether location, distance, or both are important for analysis.
+
+* understand some basic dimension reduction methods and why they are important.  
+* execute simple random effects models with `spBayes`.
+
+
+# spatial data and models
+
+Spatial data are referenced by location, and location is considered important for understanding responses.  *Point-referenced data* are identified by a vector of coordinates in continuous space.  For a (2-D) map the reference could be longitude, latitude: $\mathbf{s}_i = (s_{i1}, s_{i2})$.  In the ocean or atmosphere, the reference could additionally have depth or altitude, $\mathbf{s}_i = (s_{i1}, s_{i2}, s_{i3})$.  
+
+*Block-referenced data* are associated with an area.  Examples could be zip codes, counties, watersheds, or voxels.  Both point- and block-referenced data have fixed locations.  For example, a sampling design could specify locations to sample and then treat the responses at those locations as random.  Even if sample locations are assigned 'at random', once they are selected they might be viewed as a fixed part of the design.
+
+*Point-pattern data* have random locations--the pattern itself is the response.  The locations of trees could be taken as a response to competition.  Locations of crimes could be taken as a response to varying socio-economic conditions within a city.  
+
+All three types of spatial data share the attribute that location is viewed as important and thus will be included as part of the model.  I turn immediately to an example.
+
+# FIA data
+
+Forest inventory (FIA) data are indexed by location.  They can be viewed as *point-referenced data*.  Here is an aggregated version of FIA data that is stored as a matrix of stem counts `y`, basal area `yBA`, and predictor matrix `x`:
+
+```{r, load fia, eval=T}
+load('../dataFiles/fiaSpBayes.Rdata')
+n <- nrow(y)                   # no. plots
+S <- ncol(y)                   # no. species
+xdata <- data.frame(x)
+```
+
+Here is a map that uses `clarkFunctions2020.r`:
+
+```{r, map fia, eval=T, message=F, fig.width=5, fig.cap="Sample locations in this data set."}
+maplon <- c(-95,-67)
+maplat <- c(25,50)
+topo   <- subETOPO5(maplon,maplat)
+opt    <- list(z = topo$z, mapscale = 8, IMAGE = T)
+regMap(topo$x, topo$y, opt)
+points(coords[,1],coords[,2],cex=.2)
+```
+
+The points on this map show locations that I analyze below.  Here is a map for loblolly pine:
+
+```{r, map sp, eval=T, fig.width=4, fig.cap="Loblolly pine abundance."}
+spec <- 'PITA'
+opt <- list(yy = y[,spec])
+speciesNAmerMap(coords[,1],coords[,2], opt = opt)
+title('loblolly data')
+```                
+
+Note that I have aggregated plots on the basis of similar predictors. This decreases the numbers of plots and reduces that noise level.  In the following example I set up a spatial model for fitting in `spBayes`.
+
+# spatial random effects
+
+Spatial random effects models for point-referenced data parameterize a covariance function of distance.  Recall that the $n \times n$ covariance matrix holds $n(n+1)/2$ unique elements.  I cannot estimate all of these values.  However, if I make the elements depend on one another, then I may only need a few parameters to describe the entire matrix.  Spatial random effects models achieve predictive power by imposing spatial smoothing.  This is often not desirable.  I return to this issue later.
+
+Recall the regression model, now referenced by location,
+
+$$
+\begin{aligned}
+y(\mathbf{s}_i) &= \mu(\mathbf{s}_i) + \epsilon(\mathbf{s}_i) \\
+\epsilon(\mathbf{s}_i) &\sim N(0, \tau^2)
+\end{aligned}
+$$
+The mean structure of the model could be linear in parameters, $\mu(\mathbf{s}_i) = \mathbf{x}'(\mathbf{s}_i) \boldsymbol{\beta}$. The errors in this model are independent and identically distributed (i.i.d).  I want to allow for spatial correlation.  The most general approach is a **Gaussian process**.  Consider a new term in the model for the random effect, $w(\mathbf{s}_i)$, having a joint distribution
+
+$$
+\mathbf{w} \sim GP(0, \sigma^2 R(\cdot))
+$$
+with covariance between locations $\mathbf{s}_i$ and $\mathbf{s}_j$,
+
+$$Cov(w(\mathbf{s}_i), w(\mathbf{s}_j) ) = \sigma^2 \rho(\phi; ||\mathbf{s}_i - \mathbf{s}_j||)$$
+The notation $||\mathbf{s}_i - \mathbf{s}_j||$ indicates distance.  I can think of a $n \times n$ matrix of distances, with each element replaced by the function $\rho$.  The full covariance matrix can be written as 
+
+$$\mathbf{R}_{\sigma^2, \phi} = \sigma^2 R(\phi)$$
+In other words, the covariance matrix is a function of distance--the locations only matter in terms of their pairwise distances from one another.  
+
+There are a number of different functions that can be used to describe how covariance between points declines with distance.  One common model decays exponentially,
+
+$$\rho(\phi, s) = e^{-\phi s}$$
+for a distance $s$.  
+
+With spatial random effects the model is 
+
+$$
+\begin{aligned}
+y(\mathbf{s}_i) &= \mu(\mathbf{s}_i) + w(\mathbf{s}_i) + \epsilon(\mathbf{s}_i) \\
+\mathbf{w} &\sim MVN(0, \mathbf{R}_{\sigma^2, \phi}) \\
+\epsilon(\mathbf{s}_i) &\sim N(0, \tau^2)
+\end{aligned}
+$$
+If I marginalize out the random effects, I can equivalently write
+
+$$
+\mathbf{y} \sim MVN(\mathbf{X} \boldsymbol{\beta},  \mathbf{R}_{\sigma^2, \phi} + \tau \mathbf{I})
+$$
+Note that I have moved the random effects from the mean structure into the covariance.
+
+## computation issues
+
+Posterior simulation requires sampling distributions for $(\phi, \sigma^2, \boldsymbol{\beta})$. I cannot sample directly for $\phi$--likelihood and prior are not conjugate for this parameter.  So Metropolis is an option. 
+
+Note that I do not have to sample the random effects, because they can be marginalized away.  I can always sample them if I want to, e.g., if I am interested in this surface.  If so, I just draw from a multivariate normal distribution having mean zero and the covariance $Cov(w(\mathbf{s}_i), w(\mathbf{s}_j) )$
+
+Given covariance $\mathbf{R}$ I can directly sample $\boldsymbol{\beta}$, *provided I can invert* $\mathbf{R}$.  This will not be possible for a large number of spatial locations.  I will mention some options below, but first point out that non-Gaussian data also fit within this framework.
+
+## non-Gaussian data
+
+The spatial model can be extended to non-Gaussian data by including an additional stage.  Let $g(\cdot)$ be a link function.  For this GLM I omit the non-spatial error term,
+
+$$
+g(E[y(\mathbf{s}_i)]) = \mu(\mathbf{s}_i) + w(\mathbf{s}_i)
+$$
+Here is a spatial GLM for count data:
+
+$$
+\begin{aligned}
+y(\mathbf{s}) &\sim Poi(\theta(\mathbf{s}_i))\\
+\theta(\mathbf{s}_i) &=\mu(\mathbf{s}_i) + w(\mathbf{s}_i)
+\end{aligned}
+$$
+In the `spBayes` example that follows, there is a predictive process that reduces the $n \times n$ covariance matrix to a small number of 'knots'.  
+
+# spBayes 
+
+The package `spBayes` makes use of a **predictive processs** with dimension reduction.  Install the package `spBayes` with the other packages listed at the beginning of this vignette.  I will use an example with FIA data to compare the non-spatial GLM and the spatial version of a Poisson regression.  I start by fitting a non-spatial model, followed by the predictive process.
+
+### first, non-spatial
+
+To obtain starting values I first fit a (non-spatial) glm and compare fitted and observed:
+
+```{r, non-spatial, eval=T, fig.width=3, fig.cap="Predicted vs observed counts for loblolly pine, non-spatial GLM."}
+
+poisNS <- glm(y[,spec] ~ stdage + temp + deficit, data = xdata, family="poisson")
+beta.starting <- coefficients( poisNS )    # to initialize spBayes
+beta.tuning   <- t(chol(vcov( poisNS )))   # to start proposals
+betaNS        <- matrix(beta.starting)     # non-spatial estimates
+AICNS         <- summary(poisNS)$aic       # non-spatial AIC
+
+# observed vs predicted responses
+graphics.off()
+xi  <- model.matrix(~ stdage + temp + deficit, data = xdata)
+tmp <- predict.glm(poisNS, type='response', se.fit=T)
+yNS <- tmp$fit
+par(bty='n')
+plot(y[,spec],yNS, xlab='Observed', ylab='Non-spatial prediction', cex=.2)
+abline(0,1,lty=2)
+abline(h=mean(y[,spec]),lty=2)
+title('In-sample (at sample locations)')
+```
+
+These are the predictions at the sample locations.
+
+`r makeSpace()`
+
+`r colFmt(ebreak,'blue')`
+
+`r colFmt('Exercise 1.','blue')`  
+
+Select a species to fit.  Use AIC as a model selection criterion to determine which combination of variables in `xdata` best fits the data.
+
+`r colFmt(ebreak,'blue')`
+
+
+Obviously, the model is unable to capture some of the variation in the data.  Here are maps comparing the observed and predicted data.
+
+```{r, mapNS, eval=T, fig.cap="Observed and predicted maps for loblolly pine, non-spatial model."}
+y1 <- cbind(y[,spec], yNS)
+colnames(y1) <- c('obs','pred')
+opt <- list(yy = y1, mfrow=c(1,2), titles = c('obs','predicted'))
+speciesNAmerMap(coords[,1], coords[,2], opt = opt)
+```
+
+
+
+### predictive process for dimension reduction
+
+To reduce the dimensionality of the covariance matrix, Banerjee et al. introduce the **predictive process** that projects the surface to a smaller number of 'knots' $\mathcal{S}^* = \mathbf{s}^*_1, \dots, \mathbf{s}^*_m$ where $m << n$, having distribution
+
+$$
+\mathbf{w}^* \sim MVN(0, \mathbf{R}^*_{\sigma^2, \phi})
+$$
+where $\mathbf{R}^*_{\sigma^2, \phi}$ is a $m \times m$ covariance matrix having the same parameterization as for the full data set. There is a conditional covariance that allows me to evaluate the expected random effect at some location $\mathbf{s}_0$,
+
+$$
+E[w(\mathbf{s}_0) | \mathbf{w}^*] = \mathbf{r}'(\mathbf{s}_0, \phi) \mathbf{R}^{*-1}(\phi) \mathbf{w}^*
+$$
+where $\mathbf{r}(\mathbf{s}_0, \phi)$ is the length$-m$ vector of covariances between location $\mathbf{s}_0$ and knot locations $\mathbf{s}^*$.  For an entire surface of points, I have the covariance function
+
+$$
+R(\mathbf{s}, \mathbf{s}'; \phi) = \mathbf{r}'(\mathbf{s}, \phi) \mathbf{R}^{*-1}(\phi) \mathbf{r}(\mathbf{s}', \phi)
+$$
+where $\mathbf{r}(\mathbf{s}, \phi)$ is now the $n \times m$ matrix of covariances between points $\mathbf{s}$ and $\mathbf{s}'$.  The predictive process model is now
+
+$$
+\begin{aligned}
+y(\mathbf{s}_i) &= \mu(\mathbf{s}_i) + \tilde{w}(\mathbf{s}_i) + \epsilon(\mathbf{s}_i) \\
+\tilde{w}(\mathbf{s}) &= \mathbf{r}'(\mathbf{s}, \phi) \mathbf{R}^{*-1}(\phi) \mathbf{w}^* 
+\end{aligned}
+$$
+Now the random effects in the original model have been replaced by a linear transformation of the random effects at the $m$ knot locations. In other words, we are using the distance-dependent covariance function to interpolate between knots.
+
+### knot locations for dimension reduction
+
+
+Now I implement the spatial version.  First, read the help page for the function `spGLM`.  In addition to syntax similar to the function `glm`, I want to include coordinates, knots, starting values, tuning (variances for sampling), covariance model, and priors.  I can call this function in a loop to obtain multiple chains.
+
+I specify locations for knots to be used in dimension reduction.  I want to assign a small number of knots, not too close to one another, but concentrated where observations are dense.  I start with candidate points $15 \times 15 = 225$ grid.  Here is a map showing their locations:
+
+```{r knot}
+library(RANN)
+nk   <- 15
+klon <- seq(maplon[1],maplon[2],length=nk)[-c(1,nk)]
+klat <- seq(maplat[1],maplat[2],length=nk)[-c(1,nk)]
+knots <- as.matrix( expand.grid(klon,klat) )
+
+opt <- list(z = topo$z, mapscale = 8, IMAGE = T)
+regMap(topo$x, topo$y, opt)
+points(coords[,1],coords[,2],cex=.2)
+points(knots[,1],knots[,2],col='grey', pch=15)
+```
+
+Many of these locations are not helpful, e.g., those in the Atlantic Ocean.  From these candidates I select those having the largest number of observations within a search radius of $0.7$ lon/lat.  I limit the total number of knots to 30.  I use `RANN::nn2` to find samples close to knots.
+
+```{r someKnots}
+ntot <- 40
+tmp <- nn2(coords, knots, searchtype='radius',k = 50, radius=.7) 
+np  <- tmp[[1]]
+np[np > 0] <- 1
+wt <- order(rowSums(np), decreasing=T)[1:ntot]
+knots <- knots[wt,]
+
+regMap(topo$x, topo$y, opt)
+points(coords[,1],coords[,2],cex=.2)
+points(knots[,1],knots[,2],col='white', pch=15)
+```
+
+
+
+
+
+  Here are some arguments needed for `spGLM`:
+
+
+```{r spKnots, message=F, fig.cap="Samples and knot locations for dimension reduction in the spatial GLM."}
+n.batch      <- 20
+batch.length <- 200
+n.samples <- n.batch*batch.length
+Q <- length(poisNS$coefficients)
+```
+
+
+ To simplify use of `spBayes` I write a wrapper function for the chains, `finleyChains`.  The  model is fitted here:
+
+```{r, fitSpBayes, message=F, warning=F, eval=T}
+priors <-  list("beta.Flat", "phi.Unif" = c(.05, 4), "sigma.sq.IG" = c(50, 20))
+betaS  <- rnorm(length(betaNS),betaNS,abs(betaNS)*.1)
+phiS   <- .tnorm(1,.1,2,.05,1)
+sigS   <- .tnorm(1,0,3,3,1)
+
+out <- spGLM(y[,spec] ~ stdage + temp + deficit, data = xdata, family="poisson",
+             coords=coords, knots=knots,
+             starting=list("beta"=betaS, "phi"= phiS,"sigma.sq"= sigS, "w"=0),
+             tuning=list("beta"=beta.tuning, "phi"=0.4,"sigma.sq"=1, "w"=0.1),
+             priors=priors,
+             amcmc=list("n.batch"=n.batch,"batch.length"=batch.length,
+                        "accept.rate"=0.43),
+             cov.model="exponential", verbose=F, n.report=500)
+
+out$DIC <- unlist( spDiag(out, verbose=F) )['DIC4']
+
+burn.in <- 0.9*n.samples
+sub.samps <- burn.in:n.samples
+out$p.samples[,"phi"] <- 3/out$p.samples[,"phi"]
+
+plot(out$p.beta.theta.samples)
+```
+
+
+`r makeSpace()`
+
+`r colFmt(ebreak,'blue')`
+
+`r colFmt('Exercise 2.','blue')`  
+
+Do you believe that the MCMC converged to a posterior distribution?  If not, what might you do to convince yourself?  
+
+`r colFmt(ebreak,'blue')`
+
+### estimates
+
+
+Note that I have saved the DIC.  Here is a table of estimates:
+
+```{r, fitPar, eval=T, message=F, warning=F, fig.cap="Parameter estimates from spBayes."}
+print(summary(window(out$p.beta.theta.samples, start=burn.in)))
+```
+
+
+Here is the covariance function:
+
+```{r plotCov, fig.width=4, fig.cap="Fitted covariance function for the exponential model in spBayes."}
+betaS <- out$p.beta.theta.samples[sub.samps,]
+samps <- betaS[,c('sigma.sq','phi')]
+dseq  <- seq(0,1,length=100)
+cmat  <- matrix(0,nrow(samps),100)
+
+for(k in 1:nrow(samps)){
+  cmat[k,] <- samps[k,'sigma.sq']*exp(-dseq/samps[k,'phi'])
+}
+
+ci <- apply(cmat,2,quantile,c(.5,.025,.975))
+plot(dseq,ci[1,],ylim=c(0,1.2*max(ci)),type='l')
+lines(dseq,ci[2,],lty=2)
+lines(dseq,ci[3,],lty=2)
+```
+
+###predictions
+
+The predicted mean values have changed from the non-spatial GLM:
+
+```{r predVobs, fig.width=4, fig.cap="Predicted vs observed in the spatial model includes random effects."}
+
+
+# prediction
+what  <- out$p.w.samples[,sub.samps]
+ymu   <- xi%*%t(betaS[,colnames(xi)]) 
+phat  <- exp( ymu + what)
+yhat  <- rowMeans(phat)
+ymu   <- rowMeans( exp(ymu) )
+wmu   <- rowMeans( exp(what) )
+yhatNS <- exp(xi%*%beta.starting)
+
+plot(y[,spec],yhat)
+points(y[,spec],yhatNS,cex=.4, col=2)
+abline(0,1,lty=2)
+abline(h=mean(y[,spec]),lty=2)
+```
+
+The root mean square prediction error for the non-spatial model is `r sqrt( mean((y[,spec] - yhatNS)^2))`.  The root mean square prediction error for this model is `r sqrt( mean((y[,spec] - yhat)^2))`
+
+The predicted values can be decomposed into contributions from the mean structure (the covariates) and the spatial random effects, $\mathbf{w}$.  They are multiplicative in this exponential link function.  Note how the two contributions vary across the map:
+
+```{r maps, message=F, fig.cap="Observed, predicted (above), and contributions of mean and random effects (below)."}
+y2 <- cbind(y[,spec],yhat,ymu,wmu)
+colnames(y2) <- c('obs','pred','mean','w')
+opt <- list(yy = y2, mfrow=c(2,2), titles = colnames(y2))
+speciesNAmerMap(coords[,1],coords[,2], opt = opt)
+```
+
+First note the differences in scale for these maps. The random effects smooth and fill in for the limited mean structure.  This multivariate approach borrows from all observations, through spatial covariance, to predict the data with random effects.  In the next section I compare with a different multivariate approach, non-spatial `gjam`.
+
+
+`r makeSpace()`
+
+`r colFmt(ebreak,'blue')`
+
+`r colFmt('Exercise 3.','blue')`  
+
+Divide up your group so that each determines how one of the following influences model selection.  Use DIC as your criterion.
+
+1. Different numbers of knots
+
+2. Prior distributions on $\sigma^2$.
+
+3. Prior distributions on $\phi$.
+
+
+
+
+`r colFmt('Exercise 4.','blue')`  
+
+Interpret the contributions of the mean and the spatial random effects to predicted surfaces.  In other words, what do they mean?
+
+`r colFmt(ebreak,'blue')`
+
+
+
+# gjam comparison
+
+I want to compare the spatial GLM with a multivariate species model.  I might not want spatial random effects, because i) they have no biological interpretation, and ii) they impose smoothing.  On the first point, I would prefer to have explanation come from predictors in the model.  I know how to interpret them.
+
+On the second point, there can be good reasons for spatial smoothing.  Any time I believe that the response between two locations could be approximated by interpolated values, I might want to consider spatial smoothing.  For FIA data, I do not want spatial smoothing.  When I see forest composition varying with habitat gradients over tens of meters, I do not want to approximate it with models that interpolates between samples tens of km apart.  
+
+In `gjam`, I borrow information in a different way, through information coming from all species.  Because they each sense the environment in different ways, a joint distribution of species can help me understand all of them.  Here is the same mean specification in `gjam`, but on the data scale (not the link scale):
+
+```{r gjam, eval=F}
+S <- ncol(y)
+modelList <- list(ng = 2000, burnin = 500, typeNames = 'DA', 
+                  reductList = list(r = 3, N = 20))
+output   <- gjam(~ stdage + temp + deficit, xdata, y, modelList)
+gjamDIC  <- output$modelSummary$DIC
+
+plotPars <- list(SAVEPLOTS = T, plotAllY=T)
+gjamPlot(output, plotPars)
+```
+
+Here are predictions:
+
+```{r, gjamPred, out.width = "200px", out.height="200px", echo=F, fig.cap="Observed and predicted by gjam."}
+knitr::include_graphics("gjamPita.pdf")
+```
+
+Here are maps:
+
+```{r gjamMap, message=F, warning=F, eval=F}
+ypred <- output$prediction$ypredMu
+opt   <- list(yy = cbind(y[,'PITA'],ypred[,'PITA']), 
+              mfrow=c(2,2), titles = c('obs','pred'))
+speciesNAmerMap(coords[,1],coords[,2], opt = opt)
+```
+
+
+```{r, gjamMap2, out.width = "650px", echo=T, fig.cap="Maps of observed and predicted by gjam."}
+knitr::include_graphics("gjamMap.pdf")
+```
+
+Note that `gjam` does not know sample locations.  However, prediction is improved due to the information species hold on one another.
+
+`r makeSpace()`
+
+`r colFmt(ebreak,'blue')`
+
+`r colFmt('Exercise 5.','blue')`  
+
+Repeat exercise 3 with GJAM and compare results for the two models.  If there are differences, can you explain them?
+
+`r colFmt(ebreak,'blue')`
+
+# Conditional autoregression (CAR) model
+
+Areal unit data, or **block-referenced** data come from non-overlapping areas.  The CAR model takes into account correlations that can come from adjacency.  Suppose there are $n$ spatial units.  In it's simplest form there is a $n \times n$ indicator matrix that specifies units sharing a boundary with '1' and '0' elsewhere.  To demonstrate I use a few examples from the `CARBayes` package.  
+
+$$
+\begin{aligned}
+y_i &= \mu_i + \phi_i + \epsilon_i \\
+\phi_i|\phi_{-i} &\sim N \left(\frac{\rho \sum_{j=1}^n w_{ij}\phi_{j}}{
+\rho \sum_{j=1}^n w_{ij} + 1 - \rho }, \frac{\sigma^2}{\rho \sum_{j=1}^n w_{ij} + 1 - \rho} \right) \\
+\epsilon(\mathbf{s}_i) &\sim N(0, \tau^2)
+\end{aligned}
+$$
+Note that the CAR random effect $\phi_i$ for block $i$ is a weighted average of its neighbors $\{-i\}$.  For dependence parameter $\rho$ there is independence for $\rho = 0$ and the standard CAR dependence for $\rho = 1$.  The variance declines with the numbers of neighbors (sum of the weights).  The parameter $\rho$ is implemented in the function `S.Carleroux`.
+
+For a transparent demonstration, here is a square neighborhood matrix:
+```{r}
+#### Set up a square lattice region
+m <- 12
+xEast  <- 1:m
+xNorth <- 1:m
+grid   <- expand.grid(xEast, xNorth)
+n      <- nrow(grid)
+plot( NULL, xlim = c(0, m), ylim = c(0, m), xlab='East', ylab='North' )
+abline(v=grid[,1], h=grid[,2])
+text(grid[,1] - .5, grid[,2] - .5, 1:n, cex=.8)
+
+D <- W <- as.matrix(dist(grid))
+W[W != 1] <- 0 	
+```
+
+Take note of the structure of `W`.  It has $m^2 \times m^2$ elements, all zero but the off-diagonal elements. Box 1 has two neighbors (2, 13).  Box 2 has three neighbors (1, 3, 14).  Box 14 has four neighbors (2, 13, 15, 26).  These (row, column) combinations have a '1' in `W`.  
+
+The zeros and ones in the `W` matrix could be replaced with weights specifying how each affects the other.  
+
+Here is a simulated data set
+
+```{r}
+Q <- 3
+x <- matrix( rnorm(Q*n), n, Q )
+x[,1] <- 1
+x2 <- x[,2]
+x3 <- x[,3]
+beta <- matrix( rnorm(Q), Q, 1)
+sigma <- .1
+
+phi <- mvrnorm(1, rep(0,n), .5*exp(-0.1*D) )
+y   <- x%*%beta + phi + rnorm(n, 0, sigma)
+
+form <- as.formula(y ~ x2 + x3)
+
+## Gaussian model
+gaussianModel <- S.CARleroux(formula=form, family  = 'gaussian', W=W, 
+            burnin=20000, n.sample=100000, thin=10, verbose=F)
+gaussianModel
+```
+
+
+Here is the autocorrelation parameter $\rho$
+
+```{r}
+plot(gaussianModel$samples$rho)
+```
+
+Here is a map of the spatial random effects:
+
+```{r}
+library('RColorBrewer')
+
+fv <- gaussianModel$fitted.values
+mf <- min(fv)
+cc <- fv - mf
+ss <- seq(0, max(cc), length.out=10)
+cc <- findInterval(cc, ss)
+
+colM <- colorRampPalette(brewer.pal(5,'YlOrRd'))
+colm <- colM(10)
+
+symbols(x=grid[,1], y=grid[,2], squares = cc*0+1, bg=colm[cc],
+        fg=colm[cc],inches=F, xlab='East', ylab='North')
+```
+
+The CAR model can apply to non-Gaussian likelihoods.  Here is a GLM:
+
+```{r}
+lambda <- exp(x%*%beta + phi + rnorm(n, 0, sigma))
+y <- rpois(n, lambda)
+
+poissonModel <- S.CARbym(formula=form, family="poisson",
+                         W=W, burnin=20000, n.sample=100000, thin=10, verbose=F)
+poissonModel
+```
+
+
+`r makeSpace()`
+
+`r colFmt(ebreak,'blue')`
+
+`r colFmt('Exercise 6.','blue')`  
+
+Repeat the spatial analysis with a binomial model.  Use the `CARBayes` help page.  Interpret the analysis.
+
+`r colFmt(ebreak,'blue')`
+
+#Lip cancer analysis
+
+Here is code from this [site](https://rpubs.com/bms63/346190) on a lip cancer analysis.  I am reproducing it here, because I had to change some things to get the code to run.
+
+
+```{r}
+library(knitr)
+library(spdep)
+library(CARBayes)
+library(CARBayesdata)
+library(RColorBrewer)
+library(reshape2)
+library(plyr)
+library(maps)
+library(maptools)
+
+data(lipdata)
+data(lipdbf)
+data(lipshp)
+kable(summary(lipdata), caption="Summary Statistics")
+
+lipdbf$dbf    <- lipdbf$dbf[ ,c(2,1)]
+data.combined <- combine.data.shapefile(data=lipdata, shp=lipshp, dbf=lipdbf)
+W.nb  <- poly2nb(data.combined, row.names = rownames(lipdata))
+W.mat <- nb2mat(W.nb, style="B")
+
+# find neighbors with shared boundaries
+nb.bound <- poly2nb(data.combined) 
+coords   <- coordinates(data.combined)
+plot(data.combined, border = "gray", main="Scottland")
+plot(nb.bound, coords, pch = 19, cex = 0.6, add = TRUE)
+```
+
+The map shows the neighbors.  Here are maps of data:
+
+```{r}
+breakpoints <- seq(min(lipdata$observed)-1, max(lipdata$observed)+1, length.out=8)
+my.palette <- brewer.pal(n = 7, name = "OrRd")
+
+spplot(data.combined, c("observed", "expected"), 
+       main="Scottish Lip Cancer",at=breakpoints,
+       col.regions=my.palette, col="grey")
+```
+
+Here is the `pcaff` variable:
+
+```{r}
+spplot(data.combined, c("observed", "pcaff"), 
+       main="Scottish Lip Cancer", at=breakpoints,
+       col.regions=my.palette, col="black")
+```
+
+Here are model fits:
+
+```{r}
+glmmodel <- glm(observed~., family="poisson", data=data.combined@data)
+resid.glmmodel <- residuals(glmmodel)
+
+W.nb    <- poly2nb(data.combined, row.names = rownames(data.combined@data))
+W.list  <- nb2listw(W.nb, style="B")
+testglm <- moran.mc(x=resid.glmmodel, listw=W.list, nsim=1000)
+W       <- nb2mat(W.nb, style="B")
+formula <- observed ~ expected+pcaff+latitude+longitude
+model.spatial1 <- S.CARleroux(formula=formula,
+                              data=data.combined@data,family="gaussian", 
+                              W=W, burnin=5000, n.sample=10000, thin=10, verbose=F)
+betas1 <- summarise.samples(model.spatial1$samples$beta, 
+                            quantiles=c(0.5, 0.025, 0.975))
+resultsMS1 <- betas1$quantiles
+rownames(resultsMS1) <- c("Intercept", "Expected", "Pcaff", "Latitude", "Longitude")
+kable(resultsMS1, caption="95% Credible Intervals Model 1")
+```
+
+Here is a non-linear model:
+
+```{r}
+model.spatial2 <- S.CARleroux(formula=formula,
+                              data=data.combined@data,family="poisson", 
+                              W=W, burnin=5000, n.sample=10000, thin=10, verbose=FALSE)
+betas2 <- summarise.samples(model.spatial2$samples$beta, quantiles=c(0.5, 0.025, 0.975))
+resultsMS2 <- betas2$quantiles
+rownames(resultsMS2) <- c("Intercept", "Expected", "Pcaff", "Latitude", "Longitude")
+kable(resultsMS2, caption="95% Credible Intervals Model 2")
+```
+
+```{r}
+model.spatial3 <- S.CARlocalised(formula=formula, G=5,
+                                 data=data.combined@data,family="poisson", 
+                                 W=W, burnin=5000, n.sample=10000, thin=10,
+                                 verbose=FALSE)
+betas3 <- summarise.samples(model.spatial3$samples$beta, 
+                            quantiles=c(0.5, 0.025, 0.975))
+resultsMS3 <- betas3$quantiles
+rownames(resultsMS3) <- c("Expected", "Pcaff", "Latitude", "Longitude")
+kable(resultsMS3, caption="95% Credible Model 3")
+
+getfancy <- matrix(c(model.spatial1$modelfit[1],
+                     model.spatial2$modelfit[1],
+                     model.spatial3$modelfit[1]), 
+                   nrow = 3, ncol = 1, byrow = TRUE,
+                   dimnames = list(c("Model 1", "Model 2", "Model 3"),c("DIC")))
+```
+
+
+`r makeSpace()`
+
+`r colFmt(ebreak,'blue')`
+
+`r colFmt('Exercise 7.','blue')`  
+
+Work through the lip cancer example in groups as if you were attempting to apply it to a data set of your own.
+
+`r colFmt(ebreak,'blue')`
+
+
+
+#reprise
+
+Spatial models confront processes that explicitly require location, distance, or both.  Models are often large, requiring dimension reduction.  
+
+`spBayes` is a powerful package for analysis of spatial random effects.
+
+Spatial random effects are not always desirable, depending on the process and the spatial intensity of sampling.
+
+

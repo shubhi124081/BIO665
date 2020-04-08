@@ -26,7 +26,7 @@ Rcpp::sourceCpp('../cppFns.cpp')
 
 ## Exercise 1 {#q1}
 
-_Conduct simulation experiments to determine how sample size and number of response variables affects estimates of the coefficients and covariance matrix._
+Exercise 1 here.
 
 ```{r q1}
 #----------------------------------------------------------------------------
@@ -37,11 +37,7 @@ _Conduct simulation experiments to determine how sample size and number of respo
 
 ## Exercise 2 {#q2}
 
-_Jon has a survey with one binary response (`typeNames = 'PA'`) and three ordinal responses (ordinal counts, `'OC'`).  Simulate his data using `gjamSimData` and analyze it using `gjam`.  Using the documentation for `gjam`:
-
-a) What are the partition estimates and what role do they play?
-
-b) Which are better predicted by the fitted model, the `PA` data or the `OC` data?  Why might they differ?_
+Exercise 2 here.
 
 ```{r q2}
 #----------------------------------------------------------------------------
@@ -52,11 +48,7 @@ b) Which are better predicted by the fitted model, the `PA` data or the `OC` dat
 
 ## Exercise 3 {#q3}
 
-_Select 10 species from the BBS data and do a model selection (using DIC) to evaluate a limited number of variable combinations.
-
-a) How do the DIC values compare with overall sensitivity?
-
-b) With inverse prediction?_
+Exercise 3 here.
 
 ```{r q3}
 #----------------------------------------------------------------------------
@@ -67,7 +59,7 @@ b) With inverse prediction?_
 
 ## Exercise 4 {#q4}
 
-Using the block of code that generates the predictive coefficient of variation, provide an interpretation of what you see.
+Exercise 4 here.
 
 ```{r q4}
 #----------------------------------------------------------------------------
