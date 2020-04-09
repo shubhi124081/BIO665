@@ -12,7 +12,7 @@ output:
 #----------------------------------------------------------------------------
 # LOADING
 knitr::opts_chunk$set(echo=FALSE, eval=TRUE, cache=FALSE)
-pacman::p_load(ggplot2, gridExtra, RColorBrewer, reshape2)
+pacman::p_load(ggplot2, gjam, gridExtra, RColorBrewer, reshape2)
 source('../clarkfunctions2020.R')
 Rcpp::sourceCpp('../cppFns.cpp')
 # any libraries and data here
@@ -41,7 +41,6 @@ Conversely, increasing `n` (going down one column) makes estimates more accurate
 # Simulation
 ################################################################################
 mycol <- c("#69b3a2", "#404080", "#C71585")
-
 n <- c(10, 100, 400)
 S <- c(2, 4, 8)
 iter.df <- data.frame(n=rep(n,each=length(S)) , S=rep(S, by=length(n)))
@@ -131,14 +130,25 @@ for (i in 1:nrow(iter.df)) {
   
   glist[[i]] <- list(n=n, S=S, bgplot=p1, sgplot=p2, ypredplot=p3)
 }
+```
 
+Predicted coefficients vs. observed:
+```{r}
 # would make this a loop but couldn't figure & ran out of time...
 grid.arrange(glist[[1]]$bgplot, glist[[2]]$bgplot, glist[[3]]$bgplot,
              glist[[4]]$bgplot, glist[[5]]$bgplot, glist[[6]]$bgplot,
              glist[[7]]$bgplot, glist[[8]]$bgplot, glist[[9]]$bgplot)
+```
+
+Predicted covariances vs. observed:
+```{r}
 grid.arrange(glist[[1]]$sgplot, glist[[2]]$sgplot, glist[[3]]$sgplot,
              glist[[4]]$sgplot, glist[[5]]$sgplot, glist[[6]]$sgplot,
              glist[[7]]$sgplot, glist[[8]]$sgplot, glist[[9]]$sgplot)
+```
+
+Predicted responses vs. observed:
+```{r}
 grid.arrange(glist[[1]]$ypredplot, glist[[2]]$ypredplot, glist[[3]]$ypredplot,
              glist[[4]]$ypredplot, glist[[5]]$ypredplot, glist[[6]]$ypredplot,
              glist[[7]]$ypredplot, glist[[8]]$ypredplot, glist[[9]]$ypredplot)
@@ -147,11 +157,11 @@ grid.arrange(glist[[1]]$ypredplot, glist[[2]]$ypredplot, glist[[3]]$ypredplot,
 
 ## Exercise 2 {#q2}
 
-_Jon has a survey with one binary response (`typeNames = 'PA'`) and three ordinal responses (ordinal counts, `'OC'`).  Simulate his data using `gjamSimData` and analyze it using `gjam`.  Using the documentation for `gjam`:
+_Jon has a survey with one binary response (`typeNames = 'PA'`) and three ordinal responses (ordinal counts, `'OC'`).  Simulate his data using `gjamSimData` and analyze it using `gjam`.  Using the documentation for `gjam`:_
 
-a) What are the partition estimates and what role do they play?
+_a) What are the partition estimates and what role do they play?_
 
-b) Which are better predicted by the fitted model, the `PA` data or the `OC` data?  Why might they differ?_
+_b) Which are better predicted by the fitted model, the `PA` data or the `OC` data?  Why might they differ?_
 
 ```{r q2}
 #----------------------------------------------------------------------------
@@ -162,19 +172,15 @@ b) Which are better predicted by the fitted model, the `PA` data or the `OC` dat
 
 ## Exercise 3 {#q3}
 
-_Select 10 species from the BBS data and do a model selection (using DIC) to evaluate a limited number of variable combinations.
+_Select 10 species from the BBS data and do a model selection (using DIC) to evaluate a limited number of variable combinations._
 
-a) How do the DIC values compare with overall sensitivity?
+_a) How do the DIC values compare with overall sensitivity?_
 
-b) With inverse prediction?_
+_b) With inverse prediction?_
 
 ```{r q3, echo = TRUE, eval = FALSE}
 #----------------------------------------------------------------------------
 ## EXERCISE 3
-
-load('BBSeast.Rdata')
-require(gjam)
-
 
 tmp <- gjamTrimY(ydata, 1000)
 ytrim <- tmp$y                 #trimmed version of ydata
@@ -201,6 +207,8 @@ outBB4  <- gjam(formula1, xdata, ydata = ytrim, modelList = modelList)
 outBB4$fit$DIC
 
 ```
+
+Because it took so long (read: hours) to run all of these models, we captured the DIC values and hardcoded them into this table after the first run:
 
 \begin{table}[h!]
     \begin{center}
@@ -237,17 +245,21 @@ Compared to other models with higher DICs, while they also have good inverse pre
 
 _Using the block of code that generates the predictive coefficient of variation, provide an interpretation of what you see._
 
-Looking at the section of code below, I see it is looping over each of the values in `ii`, which holds a random sample of 4 predicted y means held in the list `yPredMu`. Inside the loop, we assign `i` to be the `j`th value in `ii`, and `wi` to be the index of the current `yPredMu` column. `zj` is this column's standard error divided by the mean with some error term equal to 0.01. We then run a custom Clark Function, `values2contour()`, which takes the latlon values from `predGrid` and creates a contour map. 
+I had trouble getting this code to run properly, but this is what I would expect to see:
 
-After creating the contour map, this chunk overlays the border of the region of interest (`maps::map` line). We then recover the inputted `y` data from the GJAM output `out`, scale it by 1000 hours, and then again by its maximum value in order to get reasonable scales for our plot point areas. Finally, this chunk plots the xdata's latitude and longitude points on top of the second map, using the scaled values in `ydata` as the radius for the various circles.
+Looking at the section of code below, I see it is looping over each of the values in `ii`, which holds a random sample of 4 predicted y means held in the list `yPredMu`. `zj` is the predicted yvalue's standard error divided by its mean with some error term equal to 0.01. We then run a custom Clark Function, `values2contour()`, which takes the latlon values from the prediction `predGrid` and creates a contour map with height of contours given by the scaled standard error previously calculated, `zj`. 
+
+After creating the contour map, the border of the region of interest is overlayed on top (`maps::map` line). We then recover the inputted `y` data from the GJAM output `out`, scale it by 1000 hours, and then again by its maximum value in order to get reasonable scales for our plot point areas. Finally, this chunk plots each site's latitude and longitude on top of the contour map, using the scaled values in `ydata` as the radius (and, likely, color, although I don't know what .getColor does precisely) for the various data points.
+
+The final output, then, should be a contour map of sampled predicted mean y values, overlaid with the observed data points, scaled and colored by the magnitude of observed response variable.
 
 
 ```{r q4, eval=F, echo=T}
 #----------------------------------------------------------------------------
 ## EXERCISE 4
 
+# coefficient of variation
 for(j in 1:4){
-  
   i <- ii[j]
   wi <- which(colnames(yPredMu) == i)
   zj <- yPredSe[,i]/(yPredMu[,i] + .01)
