@@ -29,7 +29,7 @@ Rcpp::sourceCpp('../cppFns.cpp')
 
 _Conduct simulation experiments to determine how sample size and number of response variables affects estimates of the coefficients and covariance matrix._
 
-Increasing `S` (going left-to-right across columns) causes predictions to be a lot less accurate. Taking a look at the first row of the beta graphs, you can see that the credible interval bars are much wider as you increase the number of species; this is less visible for the other `n` values but still present. It seems like the opposite is happening for the y predictions; as the number of species increases, the predicted values get closer to the true values.
+Taking a look at the first row of the beta graphs, you can see that the credible intervals are much wider as you increase the number of species (from left to right); this is less visible for the other `n` value rows but still present. It seems like the opposite is happening for the y predictions; as the number of species increases, the predicted values get closer to the true values.
 
 Conversely, increasing `n` (going down one column) makes estimates more accurate. This also makes sense, as increasing the sample size will allow the sampler to make better predictions. Note how the error bars decrease from the first to the second rows for the `beta` and `Sigma` plots. I don't see as much of an affect for the predicted y-values, other than increasing the number of points.
 
@@ -178,7 +178,7 @@ _a) How do the DIC values compare with overall sensitivity?_
 
 _b) With inverse prediction?_
 
-```{r q3, echo = TRUE, eval = FALSE}
+```{r q3, echo = FALSE, eval = FALSE}
 #----------------------------------------------------------------------------
 ## EXERCISE 3
 
@@ -211,26 +211,26 @@ outBB4$fit$DIC
 Because it took so long (read: hours) to run all of these models, we captured the DIC values and hardcoded them into this table after the first run:
 
 \begin{table}[h!]
-    \begin{center}
+  \begin{center}
     \caption{Model with DIC values for different GJAM models}
     \label{table:1}
     \begin{tabular}{|| c c c ||}
-    \hline 
-    \hline
-     Model Name & Formula & DIC  \\ [0.5ex]
-     \hline 
-     outBBS & $\sim$ winterTemp + therm + def + ncld & 10539378 \\
-     \hline 
-     outBBS2 & $\sim$ obsTemp + prec + ncld + soil &  10566072 \\
-     \hline 
-     outBBS3 & $\sim$ Longitude + Latitude + ncld &  10591289\\
-     \hline 
-     outBB4 & $\sim$ def + prec + obsTemp + ncld & 10634372\\
-     \hline
-     \hline
- \end{tabular}
-    \end{center}
-    \end{table}
+      \hline 
+      \hline
+      Model Name & Formula & DIC  \\ [0.5ex]
+      \hline 
+      outBBS & $\sim$ winterTemp + therm + def + ncld & 10539378 \\
+      \hline 
+      outBBS2 & $\sim$ obsTemp + prec + ncld + soil &  10566072 \\
+      \hline 
+      outBBS3 & $\sim$ Longitude + Latitude + ncld &  10591289\\
+      \hline 
+      outBB4 & $\sim$ def + prec + obsTemp + ncld & 10634372\\
+      \hline
+      \hline
+    \end{tabular}
+  \end{center}
+\end{table}
 
 
 From the analysis of DIC for different combinations of GJAM models for a given 20 species, we find that the first model with covariates `winterTemp`, `therm`, `def` and `ncld` has the lowest DIC value and therefore is preferred to other models with higher DICs. 
@@ -254,7 +254,7 @@ After creating the contour map, the border of the region of interest is overlaye
 The final output, then, should be a contour map of sampled predicted mean y values, overlaid with the observed data points, scaled and colored by the magnitude of observed response variable.
 
 
-```{r q4, eval=F, echo=T}
+```{r q4, eval=F}
 #----------------------------------------------------------------------------
 ## EXERCISE 4
 
