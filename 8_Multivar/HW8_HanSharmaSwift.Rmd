@@ -58,9 +58,70 @@ a) How do the DIC values compare with overall sensitivity?
 
 b) With inverse prediction?_
 
-```{r q3}
+```{r q3, echo = TRUE, eval = FALSE}
 #----------------------------------------------------------------------------
 ## EXERCISE 3
+
+load('BBSeast.Rdata')
+require(gjam)
+
+
+tmp <- gjamTrimY(ydata, 1000)
+ytrim <- tmp$y                 #trimmed version of ydata
+dim(ytrim)
+
+reductList <- list(N = 20, r = 15)
+modelList  <- list(ng = 2000, burnin = 500, typeNames='DA', 
+                   reductList = reductList)
+formula1 <- as.formula(~ winterTemp + therm + def + nlcd)
+
+outBBS  <- gjam(formula1, xdata, ydata = ytrim, modelList = modelList)
+outBBS$fit$DIC
+
+formula2 <- as.formula(~ obsTemp + prec + ncld + soil)
+outBBS2  <- gjam(formula1, xdata, ydata = ytrim, modelList = modelList)
+outBBS2$fit$DIC
+
+formula3 <- as.formula(~ Longitude + Latitude + ncld )
+outBBS3 <- gjam(formula1, xdata, ydata = ytrim, modelList = modelList)
+outBBS3$fit$DIC
+
+formula4 <- as.formula(~ def + prec + obsTemp + ncld)
+outBB4  <- gjam(formula1, xdata, ydata = ytrim, modelList = modelList)
+outBB4$fit$DIC
+
+```
+
+\begin{table}[h!]
+    \begin{center}
+    \caption{Model with DIC values for different GJAM models}
+    \label{table:1}
+    \begin{tabular}{|| c c c ||}
+    \hline 
+    \hline
+     Model Name & Formula & DIC  \\ [0.5ex]
+     \hline 
+     outBBS & $\sim$ winterTemp + therm + def + ncld & 10539378 \\
+     \hline 
+     outBBS2 & $\sim$ obsTemp + prec + ncld + soil &  10566072 \\
+     \hline 
+     outBBS3 & $\sim$ Longitude + Latitude + ncld &  10591289\\
+     \hline 
+     outBB4 & $\sim$ def + prec + obsTemp + ncld & 10634372\\
+     \hline
+     \hline
+ \end{tabular}
+    \end{center}
+    \end{table}
+
+
+From the analysis of DIC for different combinations of GJAM models for a given 20 species, we find that the first model with covariates `winterTemp`, `therm`, `def` and `ncld` has the lowest DIC value and therefore is preferred to other models with higher DICs. 
+
+This model has extremely good inverse prediction and covariate sensitivity for ncld is ~ 0.02, therm = 0.02, wintertemp < 0.05 and finally winterTemp ~ 0.2. 
+
+Compared to other models with higher DICs, while they also have good inverse predictions, the model sensitivites are usually much more uncertain (i.e. larger credible intervals). Notably, most models have similar sensitivities. 
+
+
 
 ```
 
