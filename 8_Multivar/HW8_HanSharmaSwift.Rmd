@@ -168,6 +168,22 @@ _b) Which are better predicted by the fitted model, the `PA` data or the `OC` da
 ## EXERCISE 2
 
 ```
+a) The partition estimates are printed in the table. The second plot from the `gjamPlot` output showed the partitioned 'OC' response variables (S2, S3, S4). The partition estimates for 'OC' response variables help translate the data into proper matrice for future estimation of betas and covariance matrix $\boldsymbol{\Sigma}$. 
+
+```{r simulate CA, eval = F}
+library(gjam)
+
+typeNames = c('PA', 'OC', 'OC', 'OC')
+f <- gjamSimData(n = 500, S = 4, Q = 4, typeNames = typeNames)
+ml  <- list(ng = 1000, burnin = 100, typeNames = f$typeNames)
+out <- gjam(f$formula, f$xdata, f$ydata, modelList = ml)
+knitr::kable(out$parameters$cutMu)
+pl  <- list(trueValues = f$trueValues, GRIDPLOTS = T)
+gjamPlot(output = out, plotPars = pl)
+
+```
+
+b)  Based on the thrid plots from `gjamPlot` output,  the 'OC' data are better predicted than the 'PA' data. This might cause by 'PA' data only having two intervals, while 'OC' data having more partitioned intervals. Partition estimates of 'OC' data allow the models to better access betas and covariance. 
 
 
 ## Exercise 3 {#q3}
