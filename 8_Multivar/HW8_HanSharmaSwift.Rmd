@@ -168,9 +168,10 @@ _b) Which are better predicted by the fitted model, the `PA` data or the `OC` da
 ## EXERCISE 2
 
 ```
+
 a) The partition estimates are printed in the table. The second plot from the `gjamPlot` output showed the partitioned 'OC' response variables (S2, S3, S4). The partition estimates for 'OC' response variables help translate the data into proper matrice for future estimation of betas and covariance matrix $\boldsymbol{\Sigma}$. 
 
-```{r simulate CA, eval = F}
+```{r}
 library(gjam)
 
 typeNames = c('PA', 'OC', 'OC', 'OC')
