@@ -1,5 +1,5 @@
 ---
-title: "Homework N Responses"
+title: "Homework 9 Responses"
 author: "Zeyi Han, Shubhi Sharma, Margaret Swift"
 date: '`r Sys.Date()`'
 output:
@@ -15,11 +15,7 @@ knitr::opts_chunk$set(echo=FALSE, eval=TRUE, cache=FALSE)
 pacman::p_load(ggplot2, gjam, gridExtra, RColorBrewer, reshape2)
 source('../clarkfunctions2020.R')
 Rcpp::sourceCpp('../cppFns.cpp')
-# any libraries and data here
-
 #----------------------------------------------------------------------------
-# FUNCTIONS
-# put functions here
 
 ```
 
@@ -133,6 +129,7 @@ for (i in 1:nrow(iter.df)) {
 ```
 
 Predicted coefficients vs. observed:
+
 ```{r}
 # would make this a loop but couldn't figure & ran out of time...
 grid.arrange(glist[[1]]$bgplot, glist[[2]]$bgplot, glist[[3]]$bgplot,
@@ -141,6 +138,7 @@ grid.arrange(glist[[1]]$bgplot, glist[[2]]$bgplot, glist[[3]]$bgplot,
 ```
 
 Predicted covariances vs. observed:
+
 ```{r}
 grid.arrange(glist[[1]]$sgplot, glist[[2]]$sgplot, glist[[3]]$sgplot,
              glist[[4]]$sgplot, glist[[5]]$sgplot, glist[[6]]$sgplot,
@@ -148,6 +146,7 @@ grid.arrange(glist[[1]]$sgplot, glist[[2]]$sgplot, glist[[3]]$sgplot,
 ```
 
 Predicted responses vs. observed:
+
 ```{r}
 grid.arrange(glist[[1]]$ypredplot, glist[[2]]$ypredplot, glist[[3]]$ypredplot,
              glist[[4]]$ypredplot, glist[[5]]$ypredplot, glist[[6]]$ypredplot,
@@ -210,28 +209,15 @@ outBB4$fit$DIC
 
 Because it took so long (read: hours) to run all of these models, we captured the DIC values and hardcoded them into this table after the first run:
 
-\begin{table}[h!]
-  \begin{center}
-    \caption{Model with DIC values for different GJAM models}
-    \label{table:1}
-    \begin{tabular}{|| c c c ||}
-      \hline 
-      \hline
-      Model Name & Formula & DIC  \\ [0.5ex]
-      \hline 
-      outBBS & $\sim$ winterTemp + therm + def + ncld & 10539378 \\
-      \hline 
-      outBBS2 & $\sim$ obsTemp + prec + ncld + soil &  10566072 \\
-      \hline 
-      outBBS3 & $\sim$ Longitude + Latitude + ncld &  10591289\\
-      \hline 
-      outBB4 & $\sim$ def + prec + obsTemp + ncld & 10634372\\
-      \hline
-      \hline
-    \end{tabular}
-  \end{center}
-\end{table}
+## Model with DIC values for different GJAM models
 
+Model Name  Formula                             DIC
+--------    ---------------------------------   ----------------
+outBBS      ~ winterTemp + therm + def + ncld   10539378
+outBBS2     ~ obsTemp + prec + ncld + soil      10566072
+outBBS3     ~ Longitude + Latitude + ncld       10591289
+outBBS4     ~ def + prec + obsTemp + ncld       10634372
+---------   ---------------------------------   ----------------
 
 From the analysis of DIC for different combinations of GJAM models for a given 20 species, we find that the first model with covariates `winterTemp`, `therm`, `def` and `ncld` has the lowest DIC value and therefore is preferred to other models with higher DICs. 
 
