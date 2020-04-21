@@ -12,7 +12,7 @@ output:
 #----------------------------------------------------------------------------
 # LOADING
 knitr::opts_chunk$set(echo=FALSE, eval=TRUE, cache=FALSE)
-pacman::p_load(ggplot2)
+pacman::p_load(CARBayes, CARBayesdata, classInt, coda, fields, geomapdata, geoR, gjam, knitr, lattice, mapdata, maps, maptools, MASS, MBA, plyr, RANN, RColorBrewer, reshape2, rgdal, sp, spBayes, spdep)
 source('../clarkfunctions2020.R')
 Rcpp::sourceCpp('../cppFns.cpp')
 # any libraries and data here
@@ -93,6 +93,35 @@ _Repeat the spatial analysis with a binomial model.  Use the `CARBayes` help pag
 #----------------------------------------------------------------------------
 ## EXERCISE 6
 
+# Jim simulation code:
+m <- 12
+xEast  <- 1:m
+xNorth <- 1:m
+grid   <- expand.grid(xEast, xNorth)
+n      <- nrow(grid)
+D <- W <- as.matrix(dist(grid))
+W[W != 1] <- 0  
+Q <- 3
+x <- matrix( rnorm(Q*n), n, Q )
+x[,1] <- 1
+x2 <- x[,2]
+x3 <- x[,3]
+beta <- matrix( rnorm(Q), Q, 1)
+sigma <- .1
+phi <- mvrnorm(1, rep(0,n), 1*exp(-0.1*D) )
+y   <- x%*%beta + phi + rnorm(n, 0, sigma)
+form <- as.formula(y ~ x2 + x3)
+
+# Binomial model
+# Generate random no. of trials, mean 20; log-odds link for probabilities
+n <- length(phi)          
+size <- rpois(n=n, lambda=20)
+p <- inv.logit(x%*%beta + phi + rnorm(n, 0, sigma))
+y <- rbinom(length(phi), size, prob=p)
+
+binomialModel <- S.CARbym(formula=form, family="binomial", trials=size,
+                         W=W, burnin=600, n.sample=10000, thin=10, verbose=F)
+binomialModel
 ```
 
 ## Exercise 7 {#q7}
@@ -101,8 +130,73 @@ _Work through the lip cancer example in groups as if you were attempting to appl
 ```{r q7}
 #----------------------------------------------------------------------------
 ## EXERCISE 7
+data(lipdata)
+data(lipdbf)
+data(lipshp)
+kable(summary(lipdata), caption="Summary Statistics")
 
+lipdbf$dbf    <- lipdbf$dbf[ ,c(2,1)]
+data.combined <- combine.data.shapefile(data=lipdata, shp=lipshp, dbf=lipdbf)
+
+# map of neighbors
+nb.bound <- poly2nb(data.combined) 
+coords   <- coordinates(data.combined)
+plot(data.combined, border = "gray", main="Scottland")
+plot(nb.bound, coords, pch = 19, cex = 0.6, add = TRUE)
+
+# The map shows the neighbors. Here are maps of data:
+breakpoints <- seq(min(lipdata$observed)-1, max(lipdata$observed)+1, length.out=8)
+my.palette <- brewer.pal(n = 7, name = "OrRd")
+
+spplot(data.combined, c("observed", "expected"), 
+       main="Scottish Lip Cancer",at=breakpoints,
+       col.regions=my.palette, col="grey")
+
+# Here is the pcaff variable, one of the predictors in the model:
+spplot(data.combined, c("observed", "pcaff"), 
+       main="Scottish Lip Cancer", at=breakpoints,
+       col.regions=my.palette, col="black")
+
+# Linear model (GLM)
+glmmodel <- glm(observed~., family="poisson", data=data.combined@data)
+resid.glmmodel <- residuals(glmmodel)
+
+W.nb    <- poly2nb(data.combined, row.names = rownames(data.combined@data))
+W.list  <- nb2listw(W.nb, style="B")
+testglm <- moran.mc(x=resid.glmmodel, listw=W.list, nsim=1000)
+W       <- nb2mat(W.nb, style="B")
+formula <- observed ~ expected+pcaff+latitude+longitude
+model.spatial1 <- S.CARleroux(formula=formula,
+                              data=data.combined@data,family="gaussian", 
+                              W=W, burnin=5000, n.sample=10000, thin=10, verbose=F)
+betas1 <- summarise.samples(model.spatial1$samples$beta, 
+                            quantiles=c(0.5, 0.025, 0.975))
+resultsMS1 <- betas1$quantiles
+rownames(resultsMS1) <- c("Intercept", "Expected", "Pcaff", "Latitude", "Longitude")
+kable(resultsMS1, caption="95% Credible Intervals Model 1")
+
+# Nonlinear model
+model.spatial2 <- S.CARleroux(formula=formula,
+                              data=data.combined@data,family="poisson", 
+                              W=W, burnin=5000, n.sample=10000, thin=10, verbose=FALSE)
+betas2 <- summarise.samples(model.spatial2$samples$beta, quantiles=c(0.5, 0.025, 0.975))
+resultsMS2 <- betas2$quantiles
+rownames(resultsMS2) <- c("Intercept", "Expected", "Pcaff", "Latitude", "Longitude")
+kable(resultsMS2, caption="95% Credible Intervals Model 2")
+
+# Here is another option with piecewise intercepts set by the constant G.
+model.spatial3 <- S.CARlocalised(formula=formula, G=5,
+                                 data=data.combined@data,family="poisson", 
+                                 W=W, burnin=5000, n.sample=10000, thin=10,
+                                 verbose=FALSE)
+betas3 <- summarise.samples(model.spatial3$samples$beta, 
+                            quantiles=c(0.5, 0.025, 0.975))
+resultsMS3 <- betas3$quantiles
+rownames(resultsMS3) <- c("Expected", "Pcaff", "Latitude", "Longitude")
+kable(resultsMS3, caption="95% Credible Model 3")
 ```
+
+
 ## Appendix {#appendix}
 
 ```{r ref.label=knitr::all_labels(), echo = T, eval = F}

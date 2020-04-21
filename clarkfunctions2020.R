@@ -304,6 +304,88 @@ bbsSpecs <- function(path="dataBBS/"){
   s
 }
 
+
+myrmultinom <- function(size, p, ASVECTOR=F){  
+  
+  # n multinomial r.v. for a n by ncol(p) matrix of probs
+  # each row of p is a probability vector
+  # size is one integer or a length-n vector of integers
+  # if ASVECTOR = T all size == 1, returns a vector of columns, otherwise a matrix
+  
+  p <- row2Mat(p)
+  
+  n     <- nrow(p)
+  J     <- ncol(p)
+  
+  if(length(size) == 1)size <- rep(size,n)
+  
+  jord  <- sample(J,J)    #randomize order
+  
+  rs <- rowSums(p)
+  ws <- which(rs != 1)
+  if(length(ws) > 0){
+    p[ws,] <- p[ws,]/rs[ws]
+  }
+  
+  p <- row2Mat(p[,jord])
+  
+  
+  sizej <- size
+  sumj  <- rep(0,n)
+  dpj   <- rep(1,n)
+  pj    <- p
+  wj    <- c(1:n)
+  
+  if(ASVECTOR){        #  only if all size == 1
+    
+    yy <- size*0
+    
+    for(j in 1:(J-1)){
+      a     <- round(pj[wj,1],10)
+      tmp  <- rbinom(length(wj),sizej[wj],a)
+      yy[wj[tmp == 1]] <- j
+      sumj[wj]  <- sumj[wj] + tmp
+      sizej <- size - sumj                       # no. remaining to choose
+      dpj   <- dpj - p[,j]                       # Pr for remainder
+      pj    <- matrix(p[,c((j+1):J)]/dpj,nrow(p))
+      wj    <- which(sumj < size,arr.ind=T) 
+    }
+    
+    yy[yy == 0] <- J
+    
+    return(yy)
+  }
+  
+  yy  <- matrix(0,n,J)
+  
+  for(j in 1:(J-1)){
+    a     <- round(pj[wj,1],10)
+    yy[wj,j] <- rbinom(length(wj),sizej[wj],a)
+    sumj  <- sumj + yy[,j]
+    sizej <- size - sumj                       # no. remaining to choose
+    dpj   <- dpj - p[,j]                       # Pr for remainder
+    pj    <- matrix(p[,c((j+1):J)]/dpj,nrow(p))
+    wj    <- which(sumj < size,arr.ind=T) 
+  }
+  
+  if(n == 1)yy[,J] <- size - sum(yy)
+  if(n > 1) yy[,J] <- size - rowSums(yy)
+  
+  yy[,jord] <- yy
+  yy
+  
+}
+
+
+
+row2Mat <- function(vec){
+  
+  if(is.matrix(vec))return(vec)
+  vn  <- names(vec)
+  vec <- matrix(vec,1)
+  colnames(vec) <- vn
+  vec
+}
 ##################### Bayesian regression, with Tobit ##############
 
 bayesReg <- function(formula, data, ng = 3000, burnin = 100, TOBIT=NULL){
@@ -1005,7 +1087,7 @@ imputeX <- function(missx, xx, yy, bg, sg, priorx ){
     
     V <- 1/( bg[i]^2/sg + IV )
     v <- bg[i]*(yy[wmi+1] - xx[wmi,-i,drop=F]%*%bg[drop=F,-i])/sg + 
-      priorx[i]*IV
+         priorx[i]*IV
     xx[wmi,i] <- v*V
   }
   xx
