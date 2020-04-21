@@ -12,9 +12,9 @@ output:
 #----------------------------------------------------------------------------
 # LOADING
 knitr::opts_chunk$set(echo=FALSE, eval=TRUE, cache=FALSE)
-pacman::p_load(CARBayes, CARBayesdata, classInt, coda, fields, geomapdata, geoR, gjam, knitr, lattice, mapdata, maps, maptools, MASS, MBA, plyr, RANN, RColorBrewer, reshape2, rgdal, sp, spBayes, spdep)
+pacman::p_load(CARBayes, CARBayesdata, classInt, coda, fields, geomapdata, geoR, gjam, gtools, knitr, lattice, mapdata, maps, maptools, MASS, MBA, plyr, RANN, RColorBrewer, reshape2, rgdal, sp, spBayes, spdep)
 source('../clarkfunctions2020.R')
-Rcpp::sourceCpp('../cppFns.cpp')
+# Rcpp::sourceCpp('../cppFns.cpp')
 # any libraries and data here
 
 #----------------------------------------------------------------------------
@@ -93,36 +93,45 @@ _Repeat the spatial analysis with a binomial model.  Use the `CARBayes` help pag
 #----------------------------------------------------------------------------
 ## EXERCISE 6
 
-# Jim simulation code:
+# Existing simulation code **************************************************
 m <- 12
-xEast  <- 1:m
-xNorth <- 1:m
-grid   <- expand.grid(xEast, xNorth)
-n      <- nrow(grid)
-D <- W <- as.matrix(dist(grid))
-W[W != 1] <- 0  
+n <- m^2
 Q <- 3
-x <- matrix( rnorm(Q*n), n, Q )
-x[,1] <- 1
-x2 <- x[,2]
-x3 <- x[,3]
-beta <- matrix( rnorm(Q), Q, 1)
 sigma <- .1
-phi <- mvrnorm(1, rep(0,n), 1*exp(-0.1*D) )
-y   <- x%*%beta + phi + rnorm(n, 0, sigma)
-form <- as.formula(y ~ x2 + x3)
 
-# Binomial model
+xEast  <- xNorth <- 1:m
+grid   <- expand.grid(xEast, xNorth)
+D <- W <- as.matrix(dist(grid))
+W[W!=1]<- 0  
+
+x     <- matrix( rnorm(Q*n), n, Q )
+x[,1] <- 1; x2 <- x[,2]; x3 <- x[,3]
+beta  <- matrix( rnorm(Q), Q, 1)
+phi   <- mvrnorm(1, rep(0,n), 1*exp(-0.1*D) )
+form  <- as.formula(y ~ x2 + x3)
+
+# Binomial model ************************************************************
 # Generate random no. of trials, mean 20; log-odds link for probabilities
-n <- length(phi)          
-size <- rpois(n=n, lambda=20)
-p <- inv.logit(x%*%beta + phi + rnorm(n, 0, sigma))
-y <- rbinom(length(phi), size, prob=p)
+sizes<- rpois(n=n, lambda=20)
+p    <- inv.logit(x%*%beta + phi + rnorm(n, 0, sigma))
+y    <- rbinom(length(phi), sizes, prob=p)
 
-binomialModel <- S.CARbym(formula=form, family="binomial", trials=size,
-                         W=W, burnin=600, n.sample=10000, thin=10, verbose=F)
+binomialModel <- S.CARbym(formula=form, family="binomial", trials=sizes,
+                          W=W, burnin=600, n.sample=10000, thin=10, verbose=F)
 binomialModel
+dic <- round(binomialModel$modelfit[1])
 ```
+
+In order to perform an analysis on a binomial model, we randomly generated vectors of (1) trial `sizes` using `rpois` with an arbitrary mean of 20 trials, (2) probability of success `p` using the inverse logit function (as binomial models use logit link), and (3) responses `y` using a binomial random variable `rbinom`. The true parameter values are contrasted with predicted in the table below:
+
+```{r}
+df <- data.frame(true=c(round(beta, 3), sigma),
+                 pred=binomialModel$summary.results[c(1:3,5),1])
+kable(df, caption="True vs. predicted parameters.")
+```
+
+Since these data are re-generated randomly every time we knit this document, we cannot comment on particular values of predicted vs. true parameters. However, over a few different runs, we noticed that while `x2` and `x3` are predicted relatively well by this process, the intercept is often predicted to have the opposite sign from the true, and the variance `sigma2` is frequently predicted to be an order of magnitude smaller than the true value. 
+
 
 ## Exercise 7 {#q7}
 _Work through the lip cancer example in groups as if you were attempting to apply it to a data set of your own._
