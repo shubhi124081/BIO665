@@ -82,6 +82,7 @@ knitr::kable(a5)
 
 _Interpret the contributions of the mean and the spatial random effects to predicted surfaces.  In other words, what do they mean?_
 
+From the observed and predicted graph the spatial random effects model does very well in terms of prediction. From the mean and spatial random effects surfaces, it appears that the spatial random effects do in fact explain alot of the variation. 
 ```{r q4}
 #----------------------------------------------------------------------------
 ## EXERCISE 4
