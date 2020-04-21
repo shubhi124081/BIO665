@@ -33,7 +33,20 @@ _Select a species to fit.  Use AIC as a model selection criterion to determine w
 ## EXERCISE 1
 
 ```
+Based on the AIC for different model combinations. The full model with all three variables and all two way interaction and the three way interaction term best fits the data for species `LIST2`. 
 
+```{r, load fia, eval=T}
+load('fiaSpBayes.Rdata')
+xdata <- data.frame(x)
+spec <- 'LIST2'
+model1 <- glm(y[,spec] ~ stdage + temp + deficit + stdage*temp + temp*deficit + stdage*deficit + stdage*temp*deficit , data = xdata, family="poisson")  
+model2 <- glm(y[,spec] ~ stdage + temp + deficit + stdage*temp + temp*deficit + stdage*deficit , data = xdata, family="poisson")  
+model3 <- glm(y[,spec] ~ stdage + temp + deficit , data = xdata, family="poisson") 
+
+step(model1, direction = "both")
+step(model2, direction = "both")
+step(model3, direction = "both")
+```
 
 ## Exercise 2 {#q2}
 
