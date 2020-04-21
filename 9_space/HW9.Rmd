@@ -41,12 +41,6 @@ _Do you believe that the MCMC converged to a posterior distribution?  If not, wh
 
 The trace plots for some parameters such as `stdage`, `deficit`, `phi` chains have converged given the stability of the chain i.e. the estimates are more or less stable and not moving around in the parameter space.. However, other parameters, particularly `intercept`, the MCMC has definitely not converged since the estimates have not stabilized in parameter space and are still moving. 
 
-```{r q2}
-#----------------------------------------------------------------------------
-## EXERCISE 2
-
-```
-
 
 ## Exercise 3 {#q3}
 
@@ -63,16 +57,18 @@ _3. Prior distributions on $\phi$._
 #----------------------------------------------------------------------------
 ## EXERCISE 3
 
-a3 <- as.data.frame(cbind(ModelName = c("3a1", "3a2", "3a3", "3a4"), knots = c(20, 30, 40, 50), DIC = c(-123181, -123932 , -124462.4,  -123794.1)))
-
+# These data are hardcoded because running the model takes quite a bit of time.
+a3 <- as.data.frame(cbind(ModelName = c("3a1", "3a2", "3a3", "3a4"), 
+                          knots = c(20, 30, 40, 50), 
+                          DIC = c(-123181, -123932 , -124462.4,  -123794.1)))
+a4 <- as.data.frame(cbind(ModelName = c("3b1", "3b2", "3b3", "3d4"), 
+                          lo = c(0.1, 0, 0, 0), hi = c(2, 4, 10, 10), 
+                          mu =c(0.05, 0.05, 3, 0.05), sig =c(1, 1, 1, 5)))
+a5 <- as.data.frame(cbind(ModelName = c("3c1", "3c2", "3c3", "3c4"), 
+                          lo = c(0, 0, 0, 0), hi = c(3, 10, 10, 10), 
+                          mu = c(3, 6, 6, 3), sig = c(1, 1, 10, 12)))
 knitr::kable(a3)
-
-a4 <- as.data.frame(cbind(ModelName = c("3b1", "3b2", "3b3", "3d4"), lo = c(0.1, 0, 0, 0), hi = c(2, 4, 10, 10), mu =c(0.05, 0.05, 3, 0.05), sig =c(1, 1, 1, 5)))
-
 knitr::kable(a4)
-
-a5 <- as.data.frame(cbind(ModelName = c("3c1", "3c2", "3c3", "3c4"), lo = c(0, 0, 0, 0), hi = c(3, 10, 10, 10), mu = c(3, 6, 6, 3), sig = c(1, 1, 10, 12)))
-
 knitr::kable(a5)
 
 ```
@@ -83,12 +79,6 @@ knitr::kable(a5)
 _Interpret the contributions of the mean and the spatial random effects to predicted surfaces.  In other words, what do they mean?_
 
 From the observed and predicted graph the spatial random effects model does very well in terms of prediction. From the mean and spatial random effects surfaces, it appears that the spatial random effects do in fact explain alot of the variation. 
-```{r q4}
-#----------------------------------------------------------------------------
-## EXERCISE 4
-
-```
-
 
 ## Exercise 5 {#q5}
 
