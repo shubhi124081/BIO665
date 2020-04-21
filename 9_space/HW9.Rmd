@@ -39,6 +39,8 @@ _Select a species to fit.  Use AIC as a model selection criterion to determine w
 
 _Do you believe that the MCMC converged to a posterior distribution?  If not, what might you do to convince yourself?_
 
+The trace plots for some parameters such as `stdage`, `deficit`, `phi` chains have converged given the stability of the chain i.e. the estimates are more or less stable and not moving around in the parameter space.. However, other parameters, particularly `intercept`, the MCMC has definitely not converged since the estimates have not stabilized in parameter space and are still moving. 
+
 ```{r q2}
 #----------------------------------------------------------------------------
 ## EXERCISE 2
