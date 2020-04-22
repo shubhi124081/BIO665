@@ -32,11 +32,7 @@ _Select a species to fit.  Use AIC as a model selection criterion to determine w
 #----------------------------------------------------------------------------
 ## EXERCISE 1
 
-```
-Based on the AIC for different model combinations. The full model with all three variables and all two way interaction and the three way interaction term best fits the data for species `LIST2`. 
-
-```{r, load fia, eval=T}
-load('fiaSpBayes.Rdata')
+load('../dataFiles/fiaSpBayes.Rdata')
 xdata <- data.frame(x)
 spec <- 'LIST2'
 model1 <- glm(y[,spec] ~ stdage + temp + deficit + stdage*temp + temp*deficit + stdage*deficit + stdage*temp*deficit , data = xdata, family="poisson")  
@@ -46,7 +42,10 @@ model3 <- glm(y[,spec] ~ stdage + temp + deficit , data = xdata, family="poisson
 step(model1, direction = "both")
 step(model2, direction = "both")
 step(model3, direction = "both")
+
 ```
+
+Based on the AIC for different model combinations. The full model with all three variables and all two way interaction and the three way interaction term best fits the data for species `LIST2`. 
 
 ## Exercise 2 {#q2}
 
@@ -138,6 +137,7 @@ binomialModel <- S.CARbym(formula=form, family="binomial", trials=sizes,
                           W=W, burnin=600, n.sample=10000, thin=10, verbose=F)
 binomialModel
 dic <- round(binomialModel$modelfit[1])
+
 ```
 
 In order to perform an analysis on a binomial model, we randomly generated vectors of (1) trial `sizes` using `rpois` with an arbitrary mean of 20 trials, (2) probability of success `p` using the inverse logit function (as binomial models use logit link), and (3) responses `y` using a binomial random variable `rbinom`. The true parameter values are contrasted with predicted in the table below:
@@ -146,6 +146,7 @@ In order to perform an analysis on a binomial model, we randomly generated vecto
 df <- data.frame(true=c(round(beta, 3), sigma),
                  pred=binomialModel$summary.results[c(1:3,5),1])
 kable(df, caption="True vs. predicted parameters.")
+
 ```
 
 Since these data are re-generated randomly every time we knit this document, we cannot comment on particular values of predicted vs. true parameters. However, over a few different runs, we noticed that while `x2` and `x3` are predicted relatively well by this process, the intercept is often predicted to have the opposite sign from the true, and the variance `sigma2` is frequently predicted to be an order of magnitude smaller than the true value. 
@@ -153,6 +154,7 @@ Since these data are re-generated randomly every time we knit this document, we 
 
 ## Exercise 7 {#q7}
 _Work through the lip cancer example in groups as if you were attempting to apply it to a data set of your own._
+
 
 ```{r q7}
 #----------------------------------------------------------------------------
