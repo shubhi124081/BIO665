@@ -90,11 +90,13 @@ knitr::kable(a5)
 
 _Interpret the contributions of the mean and the spatial random effects to predicted surfaces.  In other words, what do they mean?_
 
-From the observed and predicted graph the spatial random effects model does very well in terms of prediction. From the mean and spatial random effects surfaces, it appears that the spatial random effects do in fact explain alot of the variation. 
+From the observed and predicted graph the spatial random effects model does very well in terms of prediction. From the mean and spatial random effects surfaces, it appears that the spatial random effects do in fact explain a lot of the variation. 
 
 ## Exercise 5 {#q5}
 
 _Repeat exercise 3 with GJAM and compare results for the two models.  If there are differences, can you explain them?_
+
+The DIC from gjam model is 1376370, which is bigger than the DIC of the spatial model. It appears that the spatial model can better explain the data in this case. One weird thing we noticed is that we got a few different DIC from running the same gjam model. 
 
 ```{r q5}
 #----------------------------------------------------------------------------
