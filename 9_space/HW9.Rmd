@@ -1,5 +1,5 @@
 ---
-title: "Homework N Responses"
+title: "Homework 9 Responses"
 author: "Zeyi Han, Shubhi Sharma, Margaret Swift"
 date: '`r Sys.Date()`'
 output:
@@ -155,6 +155,7 @@ Since these data are re-generated randomly every time we knit this document, we 
 ## Exercise 7 {#q7}
 _Work through the lip cancer example in groups as if you were attempting to apply it to a data set of your own._
 
+The following are a few of our analytical notes on this example.
 
 ```{r q7}
 #----------------------------------------------------------------------------
@@ -170,7 +171,7 @@ data.combined <- combine.data.shapefile(data=lipdata, shp=lipshp, dbf=lipdbf)
 # map of neighbors
 nb.bound <- poly2nb(data.combined) 
 coords   <- coordinates(data.combined)
-plot(data.combined, border = "gray", main="Scottland")
+plot(data.combined, border = "gray", main="Scotland")
 plot(nb.bound, coords, pch = 19, cex = 0.6, add = TRUE)
 
 # The map shows the neighbors. Here are maps of data:
@@ -180,12 +181,18 @@ my.palette <- brewer.pal(n = 7, name = "OrRd")
 spplot(data.combined, c("observed", "expected"), 
        main="Scottish Lip Cancer",at=breakpoints,
        col.regions=my.palette, col="grey")
+```
+We can see from the above plot that the data observed and the data expected are pretty different in magnitude, but not in distribution. For example, in both plots we see higher incidences of lip cancer around major urban centers (Glasgow, Edinburgh, and Aberdeen), but the true density of lip cancer cases is much higher than we expected. 
 
+```{r}
 # Here is the pcaff variable, one of the predictors in the model:
 spplot(data.combined, c("observed", "pcaff"), 
        main="Scottish Lip Cancer", at=breakpoints,
        col.regions=my.palette, col="black")
+```
+For this map, we can see the variable `pcaff` (percentage of workers in agriculture, fishing, and forestry) does not seem to be very closely related to lip cancer cases. As an interesting note, `pcaff` seems to be high along the Orkney islands.
 
+```{r}
 # Linear model (GLM)
 glmmodel <- glm(observed~., family="poisson", data=data.combined@data)
 resid.glmmodel <- residuals(glmmodel)
@@ -212,7 +219,10 @@ betas2 <- summarise.samples(model.spatial2$samples$beta, quantiles=c(0.5, 0.025,
 resultsMS2 <- betas2$quantiles
 rownames(resultsMS2) <- c("Intercept", "Expected", "Pcaff", "Latitude", "Longitude")
 kable(resultsMS2, caption="95% Credible Intervals Model 2")
+```
+Results from the nonlinear model in general seem to have credible intervals that straddle 0 more often than that of the linear model, with predicted values that are an order of magnitude smaller than those of the linear as well.
 
+```{r}
 # Here is another option with piecewise intercepts set by the constant G.
 model.spatial3 <- S.CARlocalised(formula=formula, G=5,
                                  data=data.combined@data,family="poisson", 
@@ -225,6 +235,13 @@ rownames(resultsMS3) <- c("Expected", "Pcaff", "Latitude", "Longitude")
 kable(resultsMS3, caption="95% Credible Model 3")
 ```
 
+```{r}
+dic1 <- round(model.spatial1$modelfit[['DIC']])
+dic2 <- round(model.spatial2$modelfit[['DIC']])
+dic3 <- round(model.spatial3$modelfit[['DIC']])
+```
+
+Given the three models above, we can compare the DIC: `r dic1`, `r dic2`, and `r dic3`, respectively. Clearly, the third model has the lowest DIC and is the best fit to the data. This is likely because setting piecewise intercepts allows the model to more accurately conform to regional differences.
 
 ## Appendix {#appendix}
 
