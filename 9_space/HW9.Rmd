@@ -96,7 +96,7 @@ From the observed and predicted graph the spatial random effects model does very
 
 _Repeat exercise 3 with GJAM and compare results for the two models.  If there are differences, can you explain them?_
 
-The DIC from gjam model is 1376370, which is bigger than the DIC of the spatial model. It appears that the spatial model can better explain the data in this case. One weird thing we noticed is that we got a few different DIC from running the same gjam model. 
+The DIC from gjam model is 1376370, which is bigger than the DIC of the spatial model. It appears that the spatial model can better explain the data in this case. One thing we noticed is that DIC would change everytime we ran the same gjam model. 
 
 ```{r q5}
 #----------------------------------------------------------------------------
